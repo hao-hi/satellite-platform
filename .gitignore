@@ -2,6 +2,10 @@ __pycache__/
 *.pyc
 .vs/
 .vscode/
+*.egg-info/
+.coverage
+build/
+dist/
 outputs/
 output/
 *.png
