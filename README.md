@@ -28,6 +28,68 @@
 - 网格搜索、随机搜索、Nelder-Mead、模拟退火和 PSO 调参工具。
 - 可复现的反作用轮阵列研究实验。
 
+## 代码结构
+
+项目采用标准 `src/` layout。第一次阅读代码时，建议先看 `examples/` 里的脚本，再进入 `src/satmodel/system.py` 理解主仿真循环。
+
+```text
+satellite-attitude-control-model/
+  README.md                         GitHub 首页说明
+  pyproject.toml                    Python 包元数据、依赖和命令行入口
+  docs/                             架构、物理模型、参考资料和新手导览
+  examples/                         可直接运行的演示脚本
+  tests/                            单元测试、物理验证和示例 smoke test
+  src/satmodel/                     核心 Python 包
+```
+
+核心包 `src/satmodel/`：
+
+| 文件或目录 | 作用 |
+| --- | --- |
+| `__init__.py` | 顶层公共 API 汇总，例如 `ScenarioRunner`、`SimulationConfig`、`build_default_system()`。 |
+| `_version.py` | 包版本号。 |
+| `_validation.py` | 输入校验工具，例如三维向量、三阶矩阵、单位向量和 UTC 时间。 |
+| `types.py` | 核心数据对象，包括刚体状态、参考姿态、轨道状态、环境上下文、力矩预算、传感器测量、估计状态、仿真配置、仿真结果和反作用轮遥测。 |
+| `math.py` | 四元数、姿态误差、角速度矩阵、方向余弦矩阵和本体系/惯性系旋转工具。 |
+| `geometry.py` | 盒体几何和投影面积计算，供气动和太阳光压模型共用。 |
+| `physics.py` | 质量属性、均匀盒体惯量、CubeSat 演示物理配置和反作用轮默认配置入口。 |
+| `environment.py` | 轨道源、地理坐标转换、地磁场、大气密度、太阳方向、地影和组合式环境采样。 |
+| `disturbances.py` | 重力梯度、残余磁、气动、太阳光压扰动力矩，以及具名扰动力矩预算。 |
+| `actuators.py` | 理想力矩执行器、单个反作用轮、反作用轮阵列、力矩分配、限幅、失效和遥测。 |
+| `dynamics.py` | 刚体姿态动力学、RK4 积分，以及反作用轮角动量和轮速状态耦合。 |
+| `sensors.py` | 简化姿态传感器和陀螺模型，支持噪声、偏置和随机种子复现。 |
+| `estimation.py` | MEKF 姿态估计和估计器组合。 |
+| `identification.py` | 角加速度辅助、扰动重构、对角惯量 RLS 和辨识诊断量。 |
+| `controllers.py` | PD 控制器和三轴 LADRC 控制器。 |
+| `optimization.py` | 网格搜索、随机搜索、Nelder-Mead、模拟退火和 PSO 参数优化工具。 |
+| `plotting.py` | 仿真结果绘图辅助。 |
+| `system.py` | 高层系统装配、默认系统构造器和单速率固定步长仿真循环，是理解项目运行方式的关键文件。 |
+| `studies/` | 可复现实验入口，目前包含反作用轮阵列研究实验。 |
+
+示例脚本 `examples/`：
+
+| 脚本 | 作用 |
+| --- | --- |
+| `open_loop.py` | 开环刚体传播，不启用控制器。 |
+| `pd_closed_loop.py` | PD 姿态稳定闭环，最适合入门。 |
+| `ladrc_closed_loop.py` | LADRC 姿态控制和扰动诊断。 |
+| `mekf_rls_identification.py` | MEKF 姿态估计和 RLS 惯量辨识。 |
+| `tune_pd.py` | 使用 PSO 优化 PD 控制器参数。 |
+| `cubesat_reaction_wheels_pd.py` | 1U CubeSat 四反作用轮 PD 闭环。 |
+| `cubesat_wheel_failure.py` | 禁用一个反作用轮后的失效降级场景。 |
+| `academic_reaction_wheel_study.py` | 反作用轮阵列论文式批量实验。 |
+
+文档 `docs/`：
+
+| 文档 | 作用 |
+| --- | --- |
+| `NEWCOMER_GUIDE.md` | 面向第一次打开项目的人，解释项目是什么、各文件做什么、怎么运行。 |
+| `PROJECT_GUIDE.md` | 项目总说明，集中介绍代码结构、仿真流程、物理公式和默认参数。 |
+| `ARCHITECTURE.md` | 架构说明，解释组件层次和单步数据流。 |
+| `ROADMAP.md` | 后续物理模型、仿真方法和工程化升级路线。 |
+| `REFERENCES.md` | 参考框架、论文、官方模型和开源项目索引。 |
+| `physics/` | 分专题物理模型说明，包括刚体、环境扰动、反作用轮和参数追溯。 |
+
 ## 快速安装
 
 要求：
@@ -243,28 +305,6 @@ python examples/academic_reaction_wheel_study.py --duration 20 --dt 0.02
 - `attitude_error.png`
 - `allocation_error.png`
 - `wheel_speed_norm.png`
-
-## 代码结构
-
-```text
-src/satmodel/
-  system.py          高层系统装配和单速率仿真循环
-  types.py           状态、测量、环境、遥测和结果数据对象
-  dynamics.py        刚体姿态动力学和 RK4 积分
-  environment.py     轨道、地磁、大气和环境采样
-  disturbances.py    重力梯度、残余磁、气动和太阳光压扰动
-  actuators.py       理想力矩执行器和反作用轮状态效应器
-  physics.py         质量属性、CubeSat 几何和物理配置
-  sensors.py         姿态传感器和陀螺模型
-  estimation.py      MEKF 和估计器组合
-  identification.py  对角惯量 RLS 和角加速度辅助
-  controllers.py     PD 和 LADRC 控制器
-  optimization.py    参数调优工具
-  plotting.py        绘图辅助
-  studies/           可复现实验入口
-```
-
-更详细的新手说明见 [docs/NEWCOMER_GUIDE.md](docs/NEWCOMER_GUIDE.md)。
 
 ## 测试与开发
 
