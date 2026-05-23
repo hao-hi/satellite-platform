@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from satmodel._validation import scalar_or_vec3
 from satmodel.math import quat_error
 from satmodel.types import EstimatedState, ReferenceAttitude
 
@@ -47,7 +48,7 @@ class LADRCController:
 
     def __init__(self, config: LADRCConfig | None = None):
         self.config = LADRCConfig() if config is None else config
-        self.b0 = self._vec3(self.config.b0)
+        self.b0 = scalar_or_vec3(self.config.b0, name="LADRC b0")
         self.b0 = np.maximum(self.b0, 1e-6)
         self.kp = float(self.config.omega_c**2)
         self.kd = float(2.0 * self.config.omega_c)
@@ -55,11 +56,6 @@ class LADRCController:
         self.beta2 = float(3.0 * self.config.omega_o**2)
         self.beta3 = float(self.config.omega_o**3)
         self.reset()
-
-    @staticmethod
-    def _vec3(value) -> np.ndarray:
-        arr = np.asarray(value, dtype=float).reshape(-1)
-        return np.full(3, float(arr[0]), dtype=float) if arr.size == 1 else arr[:3].astype(float)
 
     def reset(self):
         self.z1 = np.zeros(3, dtype=float)

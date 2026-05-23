@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.pytest_cache/
 .vs/
 .vscode/
 *.egg-info/
@@ -8,17 +9,8 @@ build/
 dist/
 outputs/
 output/
-*.png
-*.log
-*.swp
-*.swo
-*~
-__pycache__/
-*.pyc
-.vs/
-.vscode/
-outputs/
-output/
+results/
+simulation_outputs/
 *.png
 *.log
 *.swp

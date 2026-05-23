@@ -109,13 +109,11 @@ class EstimatorStack:
         )
         self.disturbance_alpha = float(np.clip(disturbance_alpha, 1e-3, 1.0))
         self.disturbance = np.zeros(3, dtype=float)
-        self._last_applied = np.zeros(3, dtype=float)
 
     def reset(self, quaternion=None):
         self.mekf.reset(quaternion)
         self.differentiator.reset()
         self.disturbance[:] = 0.0
-        self._last_applied[:] = 0.0
         if self.identifier is not None:
             self.identifier.reset()
             self.inertia_diag = self.identifier.inertia_diag.copy()
@@ -144,7 +142,6 @@ class EstimatorStack:
             )
             diagnostics.update(self.identifier.diagnostics())
             covariance_ratio = self.identifier.covariance_ratio()
-        self._last_applied = np.asarray(applied_torque, dtype=float).reshape(3).copy()
         return EstimatedState(
             quaternion=attitude_state.quaternion,
             omega=attitude_state.omega,

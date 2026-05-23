@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from satmodel.math import quat_from_axis_angle, quat_mul, quat_normalize
-from satmodel.types import EnvironmentSample, RigidBodyState, SensorMeasurement
+from satmodel.types import EnvironmentContext, RigidBodyState, SensorMeasurement
 
 
 def _random_unit(rng: np.random.RandomState) -> np.ndarray:
@@ -61,10 +61,10 @@ class SensorSuite:
         self.attitude.reset(seed)
         self.gyro.reset(None if seed is None else seed + 1)
 
-    def measure(self, state: RigidBodyState, environment_sample: EnvironmentSample | None, time: float) -> SensorMeasurement:
+    def measure(self, state: RigidBodyState, environment_context: EnvironmentContext | None, time: float) -> SensorMeasurement:
         return SensorMeasurement(
             time=time,
             attitude=self.attitude.measure(state),
             gyro=self.gyro.measure(state),
-            environment=environment_sample,
+            environment=environment_context,
         )

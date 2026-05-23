@@ -1,22 +1,28 @@
-# satmodel Roadmap
+# satmodel 路线图
 
-The first package release focuses on a clean single-rate API. Follow-up work can
-extend the same interfaces without reintroducing script coupling.
+当前 `satmodel` 的第一版目标是形成清晰、可调用、可测试的单速率姿态仿真库。后续工作应沿用现有接口继续扩展，避免重新退回到单脚本耦合结构。
 
-## Next Model Upgrades
+## 物理模型优先升级
 
-1. Add a multi-rate scheduler for fast dynamics and slower sensors, estimation,
-   and control tasks.
-2. Offer a `solve_ivp` dynamics backend beside the fixed-step RK4 integrator.
-3. Add environment backends for IGRF, higher-fidelity atmospheric density, and
-   ephemeris-driven Sun geometry.
-4. Add reaction-wheel arrays, pyramid allocation, wheel speed limits, failures,
-   dead zones, and actuator lag.
-5. Add richer star tracker and IMU timing/error models.
+1. 在现有 `BoxGeometry` 基础上增加 facet/panel 几何，使卫星外形能够以更高保真度驱动气动、SRP 和磁扰动分析。
+2. 将当前盒体投影气动和太阳光压模型替换为面元积分模型。
+3. 扩展轨道和环境 provider，引入由星历驱动的太阳方向，并用参考场景验证可选 IGRF、NRLMSIS 和 TLE/SGP4 适配器。
+4. 在当前耦合反作用轮模型基础上增加轴承摩擦、电机一阶滞后、安装误差、磁力矩器和动量卸载逻辑。
+5. 将物理验证从当前力矩预算、守恒量和回归测试扩展到 Monte Carlo 场景，以及与 Basilisk 风格高保真案例的对比。
 
-## Methods Upgrades
+## 仿真方法升级
 
-1. Add batch least-squares and EKF inertia-identification experiments.
-2. Revisit full inertia-matrix estimation and observability diagnostics.
-3. Add controller benchmarking and Monte Carlo experiment helpers.
-4. Add 3D attitude visualization and wheel telemetry.
+1. 增加多速率调度器，让快速动力学、慢速传感器、估计器和控制器可以用不同采样周期运行。
+2. 在固定步长 RK4 积分器之外，增加 `solve_ivp` 动力学后端。
+3. 增加批量最小二乘和 EKF 惯量辨识实验。
+4. 重新研究完整惯量矩阵辨识和可观性诊断，而不仅限于对角惯量。
+5. 增加控制器基准测试、更丰富的传感器时序/误差模型，以及带轮组 telemetry 的三维姿态可视化。
+
+## 库工程升级
+
+1. 稳定顶层公共 API，并为高层系统构造、环境 provider、扰动效应器和反作用轮配置补充 API 参考文档。
+2. 为 `satmodel.studies` 增加更多可复现实验，例如环境扰动预算实验、反作用轮失效重构实验和惯量辨识实验。
+3. 增加更严格的包构建检查和安装后 smoke test。
+4. 明确 demo 参数、工程假设和任务级硬件参数的替换流程。
+5. 在发布前补齐许可证文件、变更日志和版本化策略。
+

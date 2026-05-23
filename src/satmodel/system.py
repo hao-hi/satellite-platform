@@ -6,20 +6,25 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from satmodel.actuators import TorqueActuator, TorqueActuatorConfig
+from satmodel.actuators import ReactionWheelStateEffector, TorqueActuator, TorqueActuatorConfig
 from satmodel.controllers import LADRCConfig, LADRCController, PDController
+from satmodel.disturbances import default_leo_disturbance_effectors
 from satmodel.dynamics import SpacecraftDynamics
-from satmodel.environment import EnvironmentModel, LEOEnvironment
+from satmodel.environment import EnvironmentModel, build_demo_leo_environment
 from satmodel.estimation import EstimatorStack, MEKF
 from satmodel.identification import RLSIdentifier
 from satmodel.math import quat_from_axis_angle
+from satmodel.physics import CubeSatPhysicalConfig
 from satmodel.sensors import SensorSuite
 from satmodel.types import (
     EstimatedState,
     ReferenceAttitude,
     RigidBodyState,
+    SensorMeasurement,
     SimulationConfig,
     SimulationResult,
+    TorqueBudget,
+    WheelArrayTelemetry,
 )
 
 
@@ -37,11 +42,13 @@ ASTERIA_LIKE_INERTIA = np.array(
 class StepRecord:
     state: RigidBodyState
     estimate: EstimatedState
-    measurement: object
+    measurement: SensorMeasurement
     commanded_torque: np.ndarray
     applied_torque: np.ndarray
     disturbance_torque: np.ndarray
+    disturbance_terms: TorqueBudget
     controller_disturbance_torque: np.ndarray
+    actuator_telemetry: WheelArrayTelemetry | None = None
 
 
 class SatelliteSystem:
@@ -52,9 +59,10 @@ class SatelliteSystem:
         dynamics: SpacecraftDynamics,
         environment: EnvironmentModel,
         sensors: SensorSuite,
-        actuator: TorqueActuator,
+        actuator,
         estimator,
         controller=None,
+        disturbances=None,
     ):
         self.dynamics = dynamics
         self.environment = environment
@@ -62,6 +70,7 @@ class SatelliteSystem:
         self.actuator = actuator
         self.estimator = estimator
         self.controller = controller
+        self.disturbances = default_leo_disturbance_effectors() if disturbances is None else disturbances
 
     def reset(self, initial_state: RigidBodyState, seed: int | None = None):
         self.sensors.reset(seed)
@@ -69,6 +78,8 @@ class SatelliteSystem:
             self.estimator.reset(initial_state.quaternion)
         if hasattr(self.controller, "reset"):
             self.controller.reset()
+        if hasattr(self.actuator, "reset"):
+            self.actuator.reset()
         self.actuator.apply(np.zeros(3, dtype=float))
 
     def step(
@@ -83,8 +94,9 @@ class SatelliteSystem:
         extra = np.zeros(3, dtype=float) if extra_disturbance is None else np.asarray(extra_disturbance, dtype=float).reshape(3)
         noise = np.zeros(3, dtype=float) if disturbance_noise is None else np.asarray(disturbance_noise, dtype=float).reshape(3)
         inertia = self.dynamics.inertia_at(state.time, state)
-        environment_sample = self.environment.sample(state.time, state, inertia)
-        measurement = self.sensors.measure(state, environment_sample, state.time)
+        environment_context = self.environment.sample(state.time)
+        disturbance_terms = self.disturbances.torques(state, inertia, environment_context)
+        measurement = self.sensors.measure(state, environment_context, state.time)
         estimate = self.estimator.update(measurement, self.actuator.last_applied, dt)
         command = (
             np.zeros(3, dtype=float)
@@ -94,7 +106,7 @@ class SatelliteSystem:
         applied = self.actuator.apply(command, dt)
         if hasattr(self.controller, "observe_applied_torque"):
             self.controller.observe_applied_torque(applied)
-        disturbance = environment_sample.total_torque + extra + noise
+        disturbance = disturbance_terms.total_torque + extra + noise
         controller_disturbance = (
             np.zeros(3, dtype=float)
             if self.controller is None or not hasattr(self.controller, "disturbance_estimate_torque")
@@ -107,7 +119,9 @@ class SatelliteSystem:
             commanded_torque=command,
             applied_torque=applied,
             disturbance_torque=disturbance,
+            disturbance_terms=disturbance_terms,
             controller_disturbance_torque=controller_disturbance,
+            actuator_telemetry=getattr(self.actuator, "last_telemetry", None),
         )
 
 
@@ -126,8 +140,9 @@ class ScenarioRunner:
         true_q, true_w = [], []
         est_q, est_w = [], []
         command, applied, disturbance = [], [], []
+        disturbance_term_history = {}
         measured_attitude, measured_gyro, inertia = [], [], []
-        controller_disturbance, diagnostics = [], []
+        controller_disturbance, diagnostics, actuator_telemetry = [], [], []
         time = []
         for _ in range(steps):
             record = self.system.step(
@@ -145,6 +160,8 @@ class ScenarioRunner:
             command.append(record.commanded_torque.copy())
             applied.append(record.applied_torque.copy())
             disturbance.append(record.disturbance_torque.copy())
+            for name, torque in record.disturbance_terms.terms.items():
+                disturbance_term_history.setdefault(name, []).append(torque.copy())
             measured_attitude.append(record.measurement.attitude.copy())
             measured_gyro.append(record.measurement.gyro.copy())
             inertia.append(
@@ -154,6 +171,7 @@ class ScenarioRunner:
             )
             controller_disturbance.append(record.controller_disturbance_torque.copy())
             diagnostics.append(dict(record.estimate.diagnostics))
+            actuator_telemetry.append(record.actuator_telemetry)
             state = record.state
         return SimulationResult(
             time=np.asarray(time, dtype=float),
@@ -164,12 +182,17 @@ class ScenarioRunner:
             commanded_torque=np.asarray(command, dtype=float),
             applied_torque=np.asarray(applied, dtype=float),
             disturbance_torque=np.asarray(disturbance, dtype=float),
+            disturbance_torque_terms={
+                name: np.asarray(track, dtype=float)
+                for name, track in disturbance_term_history.items()
+            },
             measured_attitude=np.asarray(measured_attitude, dtype=float),
             measured_gyro=np.asarray(measured_gyro, dtype=float),
             inertia_estimate=np.asarray(inertia, dtype=float),
             controller_disturbance_torque=np.asarray(controller_disturbance, dtype=float),
             reference_quaternion=config.reference.quaternion.copy(),
             estimator_diagnostics=diagnostics,
+            actuator_telemetry=actuator_telemetry,
         )
 
 
@@ -186,11 +209,12 @@ def build_default_system(
     controller: str | object | None = "pd",
     identify_inertia: bool = False,
     environment: EnvironmentModel | None = None,
+    disturbances=None,
 ) -> SatelliteSystem:
     """Build a runnable ASTERIA-like stack with replaceable components."""
 
     dynamics = SpacecraftDynamics(ASTERIA_LIKE_INERTIA)
-    environment = LEOEnvironment() if environment is None else environment
+    environment = build_demo_leo_environment() if environment is None else environment
     sensors = SensorSuite()
     actuator = TorqueActuator(TorqueActuatorConfig(0.2))
     estimator = EstimatorStack(
@@ -205,4 +229,36 @@ def build_default_system(
         controller_obj = LADRCController(LADRCConfig(b0=1.0 / np.diag(ASTERIA_LIKE_INERTIA)))
     elif controller in (None, "open_loop"):
         controller_obj = None
-    return SatelliteSystem(dynamics, environment, sensors, actuator, estimator, controller_obj)
+    return SatelliteSystem(dynamics, environment, sensors, actuator, estimator, controller_obj, disturbances)
+
+
+def build_cubesat_reaction_wheel_system(
+    *,
+    controller: str | object | None = "pd",
+    identify_inertia: bool = False,
+    environment: EnvironmentModel | None = None,
+    physical_config: CubeSatPhysicalConfig | None = None,
+    disturbances=None,
+) -> SatelliteSystem:
+    """Build the rigid 1U CubeSat baseline with a reaction-wheel array."""
+
+    config = CubeSatPhysicalConfig.one_unit_reaction_wheel_demo() if physical_config is None else physical_config
+    inertia = config.mass_properties.inertia_body_kgm2
+    actuator = ReactionWheelStateEffector(config.wheel_array_config)
+    dynamics = SpacecraftDynamics(inertia, state_effector=actuator)
+    environment = build_demo_leo_environment() if environment is None else environment
+    sensors = SensorSuite()
+    disturbances = default_leo_disturbance_effectors(config.geometry) if disturbances is None else disturbances
+    estimator = EstimatorStack(
+        mekf=MEKF(),
+        identifier=RLSIdentifier() if identify_inertia else None,
+        nominal_inertia_diag=np.diag(inertia),
+    )
+    controller_obj = controller
+    if controller == "pd":
+        controller_obj = PDController(kp=0.05, kd=0.02)
+    elif controller == "ladrc":
+        controller_obj = LADRCController(LADRCConfig(b0=1.0 / np.diag(inertia)))
+    elif controller in (None, "open_loop"):
+        controller_obj = None
+    return SatelliteSystem(dynamics, environment, sensors, actuator, estimator, controller_obj, disturbances)

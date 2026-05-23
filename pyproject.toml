@@ -8,13 +8,37 @@ version = "0.1.0"
 description = "Composable satellite attitude dynamics, estimation, identification, and control models."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "satmodel contributors" },
+]
+keywords = [
+    "satellite",
+    "attitude-control",
+    "reaction-wheels",
+    "simulation",
+    "adcs",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "numpy>=1.23",
     "matplotlib>=3.6",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "build", "twine"]
+plot = ["matplotlib>=3.6"]
+earth = ["ppigrf", "pymsis>=0.12.0"]
+tle = ["sgp4>=2.23"]
+
+[project.scripts]
+satmodel-rw-study = "satmodel.studies.reaction_wheel_study:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
