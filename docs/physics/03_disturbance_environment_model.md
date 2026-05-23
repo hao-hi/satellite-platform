@@ -135,7 +135,7 @@ $$
 \tau_{aero}^{B}=r_{cp,aero}^{B}\times F_{drag}^{B}
 $$
 
-后续 facet 版本会把盒体投影替换为可见迎风面求和。对第 `i` 个面元可先写成：
+后续面元版本会把盒体投影替换为可见迎风面求和。对第 `i` 个面元可先写成：
 
 $$
 A_{i,\perp}=A_i\max(0,-n_i^\top \hat{v}_{rel})
@@ -159,7 +159,7 @@ $$
 \tau_{srp}^{B}=r_{cp,srp}^{B}\times F_{srp}^{B}
 $$
 
-这里的符号遵循当前代码 `sun_vector_eci` 的约定。后续 facet SRP 应显式区分面元法向、入射方向、吸收、镜面反射和漫反射。
+这里的符号遵循当前代码 `sun_vector_eci` 的约定。后续面元 SRP 应显式区分面元法向、入射方向、吸收、镜面反射和漫反射。
 
 面元升级时，至少要改为逐面求和：
 
@@ -175,7 +175,7 @@ $$
 | --- | --- | --- |
 | 重力梯度力矩 | Wertz 的刚体扰动模型写法 | Basilisk gravity-gradient effector 方向 |
 | 残余磁矩力矩 | 小卫星磁扰动常用 `m x B` 关系；Ovchinnikov and Roldugin 2019 作为磁控背景 | 可选 NOAA IGRF 适配器，后续磁力矩器和动量卸载 |
-| 首版气动与 SRP | 小卫星扰动预算的一阶盒体表达；当前项目继承简化实现 | [Basilisk facet drag/SRP](https://avslab.github.io/basilisk/) 和 Tudat panelled macromodel |
+| 首版气动与 SRP | 小卫星扰动预算的一阶盒体表达；当前项目继承简化实现 | Basilisk 面元拖曳/SRP 和 Tudat 面元宏模型 |
 | 大气密度 | 默认指数模型；可选 NRLMSIS 适配器 | [NASA CCMC NRLMSIS 2.1](https://ccmc.gsfc.nasa.gov/models/NRLMSIS~2.1) |
 | 地磁场 | 默认中心偶极；可选 IGRF 适配器 | [NOAA IGRF](https://www.ncei.noaa.gov/products/international-geomagnetic-reference-field) |
 
@@ -184,7 +184,7 @@ $$
 | 参数组 | 当前口径 |
 | --- | --- |
 | `mu_earth`、`earth_radius_m` | 当前环境场后端和重力梯度 effector 的 Earth constants |
-| `altitude_m=400 km`、`inclination_deg=51.6` | `satmodel` 工程假设的 LEO demo |
+| `altitude_m=400 km`、`inclination_deg=51.6` | `satmodel` 工程假设的 LEO 演示 |
 | 密度参考值、尺度高度 | `ExponentialAtmosphere` 工程假设 |
 | `earth_rotation_rad_s`、CP 偏置、残余磁矩 | disturbance effector 工程假设，用于保持扰动力矩非零和量级可观察 |
 | `solar_pressure_n_m2` | SRP effector 的 1 AU 光压工程常量 |

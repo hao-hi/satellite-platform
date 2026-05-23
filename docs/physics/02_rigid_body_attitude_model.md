@@ -90,10 +90,10 @@ $$
 
 | 项 | 来源 | 当前用途 |
 | --- | --- | --- |
-| 四元数运动学、欧拉刚体方程 | Wertz, *Spacecraft Attitude Determination and Control*；Schaub and Junkins, *Analytical Mechanics of Space Systems* | 当前刚体 truth model |
-| 刚体 attitude truth model 边界 | [GMAT Spacecraft Attitude](https://documentation.help/GMAT/SpacecraftAttitude.html) | 说明刚体建模并非柔性高保真模型 |
+| 四元数运动学、欧拉刚体方程 | Wertz, *Spacecraft Attitude Determination and Control*；Schaub and Junkins, *Analytical Mechanics of Space Systems* | 当前刚体真值模型 |
+| 刚体姿态真值模型边界 | [GMAT Spacecraft Attitude](https://documentation.help/GMAT/SpacecraftAttitude.html) | 说明刚体建模并非柔性高保真模型 |
 | 多体和柔性升级方向 | [NASA 42](https://github.com/ericstoneking/42)，Li et al. 2022，He and Cao 2023，Murilo et al. 2021 | 后续扩展，不在本轮 |
-| 1U 质量、尺寸、轮偏置首版数值 | [CubeSat wheel demo `config.py`](https://github.com/brunopinto900/attitude_control_reaction_wheels/blob/main/config.py) | 当前 demo mass model |
+| 1U 质量、尺寸、轮偏置首版数值 | [CubeSat wheel demo `config.py`](https://github.com/brunopinto900/attitude_control_reaction_wheels/blob/main/config.py) | 当前演示质量模型 |
 
 ## 当前假设
 

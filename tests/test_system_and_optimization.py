@@ -1,3 +1,8 @@
+"""高层库入口、系统闭环、优化器和示例脚本的烟测试。
+
+这些测试覆盖用户最常走的路径：import 顶层 API、构造默认系统、运行示例和调用论文式研究入口。
+"""
+
 import runpy
 from pathlib import Path
 
@@ -23,6 +28,7 @@ from satmodel.studies.reaction_wheel_study import main as reaction_wheel_study_m
 
 
 def test_library_top_level_api_is_importable():
+    # 库化后最重要的契约：安装后应能直接 import satmodel 并拿到高层稳定 API。
     import satmodel
 
     assert satmodel.__version__ == "0.1.0"
@@ -37,6 +43,7 @@ def test_library_top_level_api_is_importable():
 
 
 def test_closed_loop_system_reduces_pd_error():
+    # PD 闭环不要求达到特定姿态轨迹，只要求末端误差低于初始误差，并保持扰动力矩预算自洽。
     config = SimulationConfig(duration=4.0, dt=0.02, seed=2)
     result = ScenarioRunner(build_default_system(controller="pd", environment=ZeroEnvironment())).run(config)
     metrics = result.metrics(config.reference)
@@ -47,6 +54,7 @@ def test_closed_loop_system_reduces_pd_error():
 
 
 def test_ladrc_and_rls_paths_emit_diagnostics():
+    # LADRC 与 RLS 是可选增强路径；测试重点是诊断量存在且数组形状稳定。
     config = SimulationConfig(duration=1.2, dt=0.02, seed=4)
     ladrc = ScenarioRunner(build_default_system(controller="ladrc")).run(config)
     identified = ScenarioRunner(
@@ -58,6 +66,7 @@ def test_ladrc_and_rls_paths_emit_diagnostics():
 
 
 def test_cubesat_reaction_wheel_system_reduces_error_and_reports_wheels():
+    # 反作用轮系统除姿态误差下降外，还必须输出四轮速度、力矩、动量和饱和诊断。
     config = SimulationConfig(duration=6.0, dt=0.02, seed=7)
     result = ScenarioRunner(
         build_cubesat_reaction_wheel_system(controller="pd", environment=ZeroEnvironment())
@@ -73,6 +82,7 @@ def test_cubesat_reaction_wheel_system_reduces_error_and_reports_wheels():
 
 
 def test_optimizers_smoke_on_convex_objective():
+    # 用简单凸二次函数检查所有优化器接口一致性；这里不追求严格最优，只确认能返回有限分数。
     objective = lambda value: float(np.sum((np.asarray(value) - np.array([0.25, -0.4])) ** 2))
     bounds = ([-1.0, -1.0], [1.0, 1.0])
     for optimizer in (
@@ -88,6 +98,7 @@ def test_optimizers_smoke_on_convex_objective():
 
 
 def test_examples_smoke():
+    # 示例脚本被当作公开教程入口，烟测试确保它们能被 runpy 加载并通过 main() 返回结果。
     root = Path(__file__).resolve().parents[1]
     for path in (
         "examples/open_loop.py",
@@ -103,6 +114,7 @@ def test_examples_smoke():
 
 
 def test_academic_reaction_wheel_study_writes_outputs(tmp_path):
+    # 论文式研究入口应生成 CSV/Markdown 产物；短时长版本用于保持测试快速。
     rows = run_reaction_wheel_study(tmp_path, duration=1.0, dt=0.05, make_plots=False)
     assert len(rows) == 5
     assert (tmp_path / "summary_metrics.csv").exists()
@@ -112,6 +124,7 @@ def test_academic_reaction_wheel_study_writes_outputs(tmp_path):
 
 
 def test_reaction_wheel_study_cli_entrypoint(tmp_path):
+    # 命令行入口最终调用同一个库函数，这里模拟 CLI 参数并检查输出目录。
     output = tmp_path / "cli"
     result = reaction_wheel_study_main([
         "--output",

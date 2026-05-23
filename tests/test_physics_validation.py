@@ -1,3 +1,8 @@
+"""物理守恒量和轮组耦合传播的回归测试。
+
+这里更像“数值物理体检”：无外力矩时角动量/能量应近似守恒，反作用轮只交换系统内部角动量。
+"""
+
 import numpy as np
 
 from satmodel import (
@@ -9,6 +14,7 @@ from satmodel import (
 
 
 def _propagate(dynamics, state, torque, *, dt: float, steps: int):
+    # 小工具：把同一个动力学对象按固定步长推进，便于比较不同步长下的漂移。
     states = [state.copy()]
     for _ in range(steps):
         state = dynamics.step(state, torque, dt=dt)
@@ -17,6 +23,7 @@ def _propagate(dynamics, state, torque, *, dt: float, steps: int):
 
 
 def test_free_rigid_body_preserves_rotational_momentum_and_energy():
+    # 自由刚体无外力矩传播时，惯性系角动量和转动能量应只留下极小数值误差。
     dynamics = SpacecraftDynamics(np.diag([0.05, 0.06, 0.08]))
     initial = RigidBodyState([1.0, 0.0, 0.0, 0.0], [0.13, -0.08, 0.05])
     states = _propagate(dynamics, initial, np.zeros(3), dt=0.002, steps=800)
@@ -27,6 +34,7 @@ def test_free_rigid_body_preserves_rotational_momentum_and_energy():
 
 
 def test_coupled_reaction_wheels_exchange_internal_angular_momentum():
+    # 轮子加速时卫星本体获得反作用角速度，但系统总角动量仍应守恒。
     wheels = ReactionWheelStateEffector(
         ReactionWheelArrayConfig.orthogonal_3wheel(
             spin_inertia_kgm2=2.0e-4,
@@ -46,6 +54,7 @@ def test_coupled_reaction_wheels_exchange_internal_angular_momentum():
 
 
 def test_smaller_free_rigid_body_step_reduces_momentum_drift():
+    # 固定 RK4 积分下，减小步长应降低自由刚体角动量漂移。
     inertia = np.diag([0.05, 0.06, 0.08])
     initial = RigidBodyState([1.0, 0.0, 0.0, 0.0], [0.22, -0.11, 0.07])
 
@@ -60,6 +69,7 @@ def test_smaller_free_rigid_body_step_reduces_momentum_drift():
 
 
 def test_smaller_coupled_wheel_step_reduces_momentum_drift():
+    # 轮组和刚体耦合传播也应呈现同样的步长收敛趋势。
     initial = RigidBodyState([1.0, 0.0, 0.0, 0.0], [0.07, -0.05, 0.03])
 
     def drift(dt):

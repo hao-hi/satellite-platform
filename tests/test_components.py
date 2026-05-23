@@ -1,3 +1,8 @@
+"""组件级测试：环境、扰动、传感器、控制器、执行机构和辨识器。
+
+这一组测试把各个子模块单独拎出来验证，目标是锁住接口形状、物理趋势和故障/饱和边界。
+"""
+
 from datetime import datetime, timezone
 import importlib
 
@@ -39,6 +44,7 @@ from satmodel.types import EstimatedState
 
 
 def test_environment_context_disturbance_budget_and_sensor_seed_reproducibility():
+    # 环境采样应提供扰动模型需要的完整上下文；同一随机种子下传感器噪声应可复现。
     state = RigidBodyState([1.0, 0.0, 0.0, 0.0], [0.1, 0.0, 0.0])
     context = build_demo_leo_environment().sample(0.0)
     torques = default_leo_disturbance_effectors().torques(state, np.diag([0.04, 0.08, 0.10]), context)
@@ -61,6 +67,7 @@ def test_environment_context_disturbance_budget_and_sensor_seed_reproducibility(
 
 
 def test_orbit_providers_and_composed_environment_keep_state_boundaries():
+    # 轨道源只负责给 ECI 位置/速度，组合式环境再把它转换为地理位置和环境上下文。
     epoch = datetime(2026, 1, 1, tzinfo=timezone.utc)
     circular = CircularOrbitProvider(altitude_m=400e3, inclination_deg=0.0, raan_deg=0.0, arglat0_deg=15.0)
     circular_state = circular.state_at(0.0, epoch)
@@ -78,6 +85,7 @@ def test_orbit_providers_and_composed_environment_keep_state_boundaries():
     assert np.allclose(period_state.position_eci_m, circular_state.position_eci_m, atol=1e-5)
     assert np.allclose(kepler.state_at(0.0, epoch).position_eci_m, circular_state.position_eci_m)
 
+    # 表格星历和 callable 星历分别覆盖“外部数据插值”和“用户自定义轨道源”两条入口。
     ephemeris = EphemerisOrbitProvider(
         times_s=[0.0, 10.0],
         positions_eci_m=[circular_state.position_eci_m, period_state.position_eci_m],
@@ -96,6 +104,7 @@ def test_orbit_providers_and_composed_environment_keep_state_boundaries():
 
 
 def test_field_backends_scale_and_optional_adapters_are_injectable(monkeypatch):
+    # 内置模型检查物理趋势；高保真适配器用 fake 函数验证输入组织，不把测试绑到外部数据包。
     epoch = datetime(2026, 1, 1, tzinfo=timezone.utc)
     dipole = CenteredDipoleMagneticField()
     near = dipole.field_eci(epoch, [6800e3, 0.0, 0.0], GeodeticPoint())
@@ -120,6 +129,7 @@ def test_field_backends_scale_and_optional_adapters_are_injectable(monkeypatch):
     assert np.isclose(nrlmsis.density_kg_m3(epoch, GeodeticPoint(5.0, 10.0, 400e3)), 2.5e-12)
     assert msis_calls["kwargs"]["version"] == 2.1
 
+    # 可选依赖缺失时必须给出清晰 ImportError，默认安装仍应保持轻量。
     def missing_import(name):
         raise ImportError(name)
 
@@ -133,6 +143,7 @@ def test_field_backends_scale_and_optional_adapters_are_injectable(monkeypatch):
 
 
 def test_actuator_and_controller_command_shapes():
+    # 控制器和理想执行器都输出三轴本体系力矩；这里锁定裁剪行为和命令形状。
     actuator = TorqueActuator(TorqueActuatorConfig(0.1))
     assert np.allclose(actuator.apply([0.3, -0.2, 0.04]), [0.1, -0.1, 0.04])
     reference = ReferenceAttitude()
@@ -145,6 +156,7 @@ def test_actuator_and_controller_command_shapes():
 
 
 def test_cubesat_mass_properties_and_reaction_wheel_allocation():
+    # 1U CubeSat 物理配置提供质量、几何和四轮金字塔；无饱和时轮组应精确实现命令力矩。
     physical = CubeSatPhysicalConfig.one_unit_reaction_wheel_demo()
     array = ReactionWheelStateEffector(ReactionWheelArrayConfig.pyramid_4wheel(max_torque_nm=1.0))
     command = np.array([0.01, -0.02, 0.015])
@@ -158,6 +170,7 @@ def test_cubesat_mass_properties_and_reaction_wheel_allocation():
 
 
 def test_custom_multiwheel_arrays_allocate_and_reject_rank_deficient_axes():
+    # 多轮模型允许 N>=3 的满秩轴向矩阵，同时拒绝无法覆盖三轴力矩空间的配置。
     axes = [
         [1.0, 0.0, 0.0],
         [0.0, 1.0, 0.0],
@@ -179,6 +192,7 @@ def test_custom_multiwheel_arrays_allocate_and_reject_rank_deficient_axes():
 
 
 def test_reaction_wheel_speed_limit_and_failure_telemetry():
+    # 轮速接近上限时，可用力矩窗口会收窄；禁用轮后遥测应反映失效状态。
     speed_limited = ReactionWheelStateEffector(
         ReactionWheelArrayConfig(
             (
@@ -203,6 +217,7 @@ def test_reaction_wheel_speed_limit_and_failure_telemetry():
 
 
 def test_bounded_allocation_respects_torque_and_speed_windows():
+    # 有界伪逆分配必须同时尊重电机力矩上限和本步轮速余量。
     array = ReactionWheelStateEffector(
         ReactionWheelArrayConfig.orthogonal_3wheel(
             spin_inertia_kgm2=1.0,
@@ -216,6 +231,7 @@ def test_bounded_allocation_respects_torque_and_speed_windows():
     assert np.isclose(applied[0], 0.01)
     assert np.linalg.norm(array.last_telemetry.allocation_error_nm) > 0.0
 
+    # dt>0 时速度余量参与约束；dt=0 时只检查静态力矩上限，方便做瞬时分配诊断。
     speed_window = ReactionWheelStateEffector(
         ReactionWheelArrayConfig(
             (
@@ -233,6 +249,7 @@ def test_bounded_allocation_respects_torque_and_speed_windows():
 
 
 def test_four_wheel_failure_degrades_with_rank_aware_telemetry():
+    # 四轮金字塔禁用一轮仍可满秩，继续三轴控制；再禁用一轮则进入降级不可完全实现状态。
     array = ReactionWheelStateEffector(ReactionWheelArrayConfig.pyramid_4wheel(max_torque_nm=1.0))
     array.disable_wheel(0)
     command = np.array([0.01, -0.02, 0.015])
@@ -248,6 +265,7 @@ def test_four_wheel_failure_degrades_with_rank_aware_telemetry():
 
 
 def test_nullspace_momentum_bias_preserves_body_torque_and_reduces_speed_error():
+    # 冗余四轮的零空间力矩不改变本体力矩，但可把轮速缓慢拉向参考值。
     axes = np.array(
         [
             [1.0, 1.0, 1.0],
@@ -261,6 +279,7 @@ def test_nullspace_momentum_bias_preserves_body_torque_and_reduces_speed_error()
     dt = 0.1
 
     def make_array(allocation: str, gain: float):
+        # 两个轮组只差分配策略，用来隔离零空间动量管理的影响。
         return ReactionWheelStateEffector(
             ReactionWheelArrayConfig(
                 tuple(
@@ -285,6 +304,7 @@ def test_nullspace_momentum_bias_preserves_body_torque_and_reduces_speed_error()
 
 
 def test_rls_regression_and_diagnostics_are_bounded():
+    # RLS 辨识器应返回正惯量估计，并暴露协方差迹这类健康诊断量。
     matrix = build_inertia_regression_matrix([0.2, -0.1, 0.3], [0.1, 0.2, -0.1])
     identifier = RLSIdentifier()
     inertia, _ = identifier.update([0.2, -0.1, 0.3], [0.1, 0.2, -0.1], [0.01, -0.01, 0.02])

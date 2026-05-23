@@ -38,7 +38,7 @@
 6. 控制器根据参考姿态和估计状态输出本体系力矩命令。
 7. 执行器把命令转换为实际本体系力矩。
 8. 动力学层使用实际控制力矩、扰动力矩和可选轮组内部状态传播下一步刚体状态。
-9. `SimulationResult` 记录真值、估计、测量、力矩预算、控制器诊断和执行机构 telemetry。
+9. `SimulationResult` 记录真值、估计、测量、力矩预算、控制器诊断和执行机构遥测。
 
 ## 两条默认系统路径
 
@@ -47,7 +47,7 @@
 - `build_default_system()`：使用原有饱和体轴力矩执行器，适合快速验证控制器、估计器和辨识器。
 - `build_cubesat_reaction_wheel_system()`：使用刚体 1U CubeSat 质量属性和四轮金字塔反作用轮状态效应器，同时保持控制器面对的仍是本体系力矩命令。
 
-两条路径当前共用默认 demo 环境：
+两条路径当前共用默认演示环境：
 
 - 圆轨道 LEO 轨道源、中心偶极地磁场和指数大气。
 - 重力梯度、残余磁、气动和太阳光压四类具名扰动力矩。
@@ -78,9 +78,9 @@
 
 IGRF、NRLMSIS 和 TLE/SGP4 都需要绝对时间和地理位置边界，因此 `OrbitalEnvironment` 负责统一采样时间、轨道状态和坐标转换，再把结果交给扰动效应器计算卫星响应。
 
-## 反作用轮 telemetry
+## 反作用轮遥测
 
-反作用轮 telemetry 保存在 `SimulationResult.actuator_telemetry` 中，并通过便捷属性暴露：
+反作用轮遥测保存在 `SimulationResult.actuator_telemetry` 中，并通过便捷属性暴露：
 
 - `wheel_speeds_rad_s`
 - `wheel_torques_nm`
@@ -91,4 +91,3 @@ IGRF、NRLMSIS 和 TLE/SGP4 都需要绝对时间和地理位置边界，因此 
 - `wheel_saturation_flags`
 
 CubeSat 反作用轮路径会把轮速作为内部状态与刚体一起传播，并在刚体陀螺耦合项中包含轮组动量。
-

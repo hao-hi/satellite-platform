@@ -7,21 +7,21 @@
 ## 工程框架参考
 
 - [Basilisk](https://avslab.github.io/basilisk/)  
-  主要参考其 spacecraft hub、state effector、dynamic effector、facet SRP、facet drag 和 reaction wheel state effector 的分层思想。`satmodel` 当前的“刚体本体 + 状态效应器 + 动态扰动效应器”结构与此路线一致。
+  主要参考其航天器本体、状态效应器、动态效应器、面元太阳光压、面元拖曳和反作用轮状态效应器的分层思想。`satmodel` 当前的“刚体本体 + 状态效应器 + 动态扰动效应器”结构与此路线一致。
 
 - [NASA 42](https://github.com/ericstoneking/42)  
   作为远期刚体/柔性多体、硬件在环和高保真 ADCS 仿真的参考。当前项目不做 42 那样完整的多体仿真，但保留后续扩展口。
 
 - [Tudat spacecraft macromodels](https://docs.tudat.space/en/latest/user-guide/state-propagation/environment-setup/creation-celestial-body-settings/spacecraft-macromodels.html)  
-  主要参考从球形/盒体模型升级到 box-wing、panelled spacecraft 和 macromodel 的路线。后续气动和 SRP 面元模型会继续沿用这种思想。
+  主要参考从球形/盒体模型升级到盒体加太阳翼、面元航天器和宏模型的路线。后续气动和 SRP 面元模型会继续沿用这种思想。
 
 - [GMAT Spacecraft Attitude](https://documentation.help/GMAT/SpacecraftAttitude.html)  
-  用作刚体姿态 truth model 的边界参考，说明当前刚体模型并不等同柔性或多体高保真模型。
+  用作刚体姿态真值模型的边界参考，说明当前刚体模型并不等同柔性或多体高保真模型。
 
 ## 开源研究代码参考
 
 - [`brunopinto900/attitude_control_reaction_wheels`](https://github.com/brunopinto900/attitude_control_reaction_wheels)  
-  提供当前 1U CubeSat 反作用轮 demo 的参数基线参考，尤其是四轮金字塔构型、伪逆分配、轮速/力矩饱和、失效场景和遥测输出。
+  提供当前 1U CubeSat 反作用轮演示的参数基线参考，尤其是四轮金字塔构型、伪逆分配、轮速/力矩饱和、失效场景和遥测输出。
 
 - [`AcubeSAT/adcs-simulation`](https://github.com/AcubeSAT/adcs-simulation)  
   是任务导向 ADCS 仿真的开源参考，适合学习物理架构说明、设计依据记录和任务级文档组织方式。
@@ -69,5 +69,4 @@
 - 外部项目主要用于架构、参数基线和算法方向参考。
 - 教材和论文主要用于公式口径、建模边界和升级路线。
 - 官方模型文档主要用于 IGRF、NRLMSIS 等可选高保真适配器的输入输出定义。
-- 当前 demo 参数不能直接当作飞行硬件标称值。任务级使用时，应替换为目标卫星的 CAD 质量属性、硬件 datasheet、标定数据或在轨辨识结果。
-
+- 当前演示参数不能直接当作飞行硬件标称值。任务级使用时，应替换为目标卫星的 CAD 质量属性、硬件数据手册、标定数据或在轨辨识结果。
