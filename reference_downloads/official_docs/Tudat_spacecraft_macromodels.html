@@ -1,0 +1,626 @@
+
+<!DOCTYPE html>
+
+<html data-content_root="../../../../" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Spacecraft macromodels — tudat.space 1.0.0 documentation</title>
+<script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+<!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+<noscript>
+<style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+</noscript>
+<!-- Loaded before other Sphinx assets -->
+<link href="../../../../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet"/>
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet"/>
+<link href="../../../../_static/pygments.css?v=8f2a1f02" rel="stylesheet" type="text/css"/>
+<link href="../../../../_static/copybutton.css?v=76b2166b" rel="stylesheet" type="text/css"/>
+<link href="../../../../_static/sphinx-codeautolink.css?v=b2176991" rel="stylesheet" type="text/css"/>
+<link href="../../../../_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="../../../../_static/custom.css?v=a02b1448" rel="stylesheet" type="text/css"/>
+<!-- So that users can add custom icons -->
+<script defer="" src="../../../../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+<!-- Pre-loaded scripts that we'll load fully later -->
+<link as="script" href="../../../../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" rel="preload"/>
+<link as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" rel="preload"/>
+<script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+<script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+<script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
+<script src="../../../../_static/copybutton.js?v=f281be69"></script>
+<script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
+<script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+<script>DOCUMENTATION_OPTIONS.pagename = 'user-guide/state-propagation/environment-setup/creation-celestial-body-settings/spacecraft-macromodels';</script>
+<script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+<link href="../../../../_static/cover_crop.png" rel="icon"/>
+<link href="../../../../genindex.html" rel="index" title="Index"/>
+<link href="../../../../search.html" rel="search" title="Search"/>
+<link href="../creating-modifying-bodies.html" rel="next" title="Modifying the bodies"/>
+<link href="../creation-celestial-body-settings.html" rel="prev" title="Creating the bodies"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="en" name="docsearch:language"/>
+<meta content="1.0" name="docsearch:version"/>
+<script src="../../../../_static/searchtools.js"></script>
+<script src="../../../../_static/language_data.js"></script>
+<script src="../../../../searchindex.js"></script>
+<script async type="text/javascript" src="/_/static/javascript/readthedocs-addons.js"></script><meta name="readthedocs-project-slug" content="tudat-space" /><meta name="readthedocs-version-slug" content="latest" /><meta name="readthedocs-resolver-filename" content="/user-guide/state-propagation/environment-setup/creation-celestial-body-settings/spacecraft-macromodels.html" /><meta name="readthedocs-http-status" content="200" /></head>
+<body data-default-mode="">
+<div class="skip-link d-print-none" id="pst-skip-link"><a href="#main-content">Skip to main content</a></div>
+<div id="pst-scroll-pixel-helper"></div>
+<button class="btn rounded-pill" id="pst-back-to-top" type="button">
+<i class="fa-solid fa-arrow-up"></i>Back to top</button>
+<dialog id="pst-search-dialog">
+<form action="../../../../search.html" class="bd-search d-flex align-items-center" method="get">
+<i class="fa-solid fa-magnifying-glass"></i>
+<input aria-label="Search the docs ..." autocapitalize="off" autocomplete="off" autocorrect="off" class="form-control" name="q" placeholder="Search the docs ..." spellcheck="false" type="search"/>
+<span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+</dialog>
+<div class="pst-async-banner-revealer d-none">
+<aside aria-label="Version warning" class="d-none d-print-none" id="bd-header-version-warning"></aside>
+</div>
+<aside aria-label="Announcement" class="bd-header-announcement">
+<div class="bd-header-announcement__content">TudatPy version 1.0 has been released 🥳 For more information, see our <a href="https://docs.tudat.space/en/latest/user-guide/project-updates/migration-guide.html">migration guide</a>! As always, you can post any questions or feedback in our <a href="https://github.com/orgs/tudat-team/discussions?discussions_q=">Github Discussion forum</a></div>
+</aside>
+<header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none" id="pst-header">
+<div class="bd-header__inner bd-page-width">
+<button aria-label="Site navigation" class="pst-navbar-icon sidebar-toggle primary-toggle">
+<span class="fa-solid fa-bars"></span>
+</button>
+<div class="col-lg-3 navbar-header-items__start">
+<div class="navbar-item">
+<a class="navbar-brand logo" href="../../../../index.html">
+<img alt="tudat.space 1.0.0 documentation - Home" class="logo__image only-light" src="../../../../_static/cover.png"/>
+<img alt="tudat.space 1.0.0 documentation - Home" class="logo__image only-dark pst-js-only" src="../../../../_static/cover_dark.png"/>
+</a></div>
+</div>
+<div class="col-lg-9 navbar-header-items">
+<div class="me-auto navbar-header-items__center">
+<div class="navbar-item">
+<nav>
+<ul class="bd-navbar-elements navbar-nav">
+<li class="nav-item">
+<a class="nav-link nav-internal" href="../../../../index-getting-started.html">
+    Getting Started
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="../../../../index-examples.html">
+    Examples
+  </a>
+</li>
+<li class="nav-item current active">
+<a class="nav-link nav-internal" href="../../../../index-user-guide.html">
+    User Guide
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-external" href="https://py.api.tudat.space/en/latest/">
+    API Reference
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="../../../../index-about.html">
+    About
+  </a>
+</li>
+</ul>
+</nav></div>
+</div>
+<div class="navbar-header-items__end">
+<div class="navbar-item navbar-persistent--container">
+<button aria-label="Search" class="btn search-button-field search-button__button pst-js-only" data-bs-placement="bottom" data-bs-toggle="tooltip" title="Search">
+<i class="fa-solid fa-magnifying-glass"></i>
+<span class="search-button__default-text">Search</span>
+<span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+</div>
+<div class="navbar-item">
+<button aria-label="Color mode" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" data-bs-placement="bottom" data-bs-title="Color mode" data-bs-toggle="tooltip">
+<i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+<i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+<i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+</button></div>
+</div>
+</div>
+<div class="navbar-persistent--mobile">
+<button aria-label="Search" class="btn search-button-field search-button__button pst-js-only" data-bs-placement="bottom" data-bs-toggle="tooltip" title="Search">
+<i class="fa-solid fa-magnifying-glass"></i>
+<span class="search-button__default-text">Search</span>
+<span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+</div>
+<button aria-label="On this page" class="pst-navbar-icon sidebar-toggle secondary-toggle">
+<span class="fa-solid fa-outdent"></span>
+</button>
+</div>
+</header>
+<div class="bd-container">
+<div class="bd-container__inner bd-page-width">
+<dialog id="pst-primary-sidebar-modal"></dialog>
+<div class="bd-sidebar-primary bd-sidebar" id="pst-primary-sidebar">
+<div class="sidebar-header-items sidebar-primary__section">
+<div class="sidebar-header-items__center">
+<div class="navbar-item">
+<nav>
+<ul class="bd-navbar-elements navbar-nav">
+<li class="nav-item">
+<a class="nav-link nav-internal" href="../../../../index-getting-started.html">
+    Getting Started
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="../../../../index-examples.html">
+    Examples
+  </a>
+</li>
+<li class="nav-item current active">
+<a class="nav-link nav-internal" href="../../../../index-user-guide.html">
+    User Guide
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-external" href="https://py.api.tudat.space/en/latest/">
+    API Reference
+  </a>
+</li>
+<li class="nav-item">
+<a class="nav-link nav-internal" href="../../../../index-about.html">
+    About
+  </a>
+</li>
+</ul>
+</nav></div>
+</div>
+<div class="sidebar-header-items__end">
+<div class="navbar-item">
+<button aria-label="Color mode" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" data-bs-placement="bottom" data-bs-title="Color mode" data-bs-toggle="tooltip">
+<i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+<i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+<i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+</button></div>
+</div>
+</div>
+<div class="sidebar-primary-items__start sidebar-primary__section">
+<div class="sidebar-primary-item">
+<nav aria-label="Section Navigation" class="bd-docs-nav bd-links">
+<p aria-level="1" class="bd-links__title" role="heading">Section Navigation</p>
+<div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Tudat(Py) user guide</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../../../state-propagation.html">State Propagation</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="../../environment-setup.html">Environment Setup</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 current active has-children"><a class="reference internal" href="../creation-celestial-body-settings.html">Creating the bodies</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l4 current active"><a class="current reference internal" href="#">Spacecraft macromodels</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../creating-modifying-bodies.html">Modifying the bodies</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../default-env-models.html">Default environment models</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../default-env-models/default-bodies-limited-time-range.html">Default bodies with a limited valid time range</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../custom-models.html">Custom models</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../custom-models/environment-during-propagation.html">Interacting with the environment during propagation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../frames-in-environment.html">Frames in the Environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../times-and-dates.html">Times and dates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../available-state-definitions-conversions.html">Available State Definitions and Conversions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../environment-architecture.html">Environment - Overall Architecture</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../propagation-setup.html">Propagation Setup</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../propagation-setup/translational.html">Translational Dynamics</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/translational/acceleration-model-setup.html">Acceleration Model Setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/translational/available-acceleration-models.html">Available Acceleration Models</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/translational/third-body-acceleration.html">Third-body accelerations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/translational/radiation-pressure-acceleration.html">Radiation pressure acceleration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/translational/thrust-models.html">Use of thrust models</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/translational/aerodynamics.html">Use of aerodynamics</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../propagation-setup/rotational.html">Rotational Dynamics</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/rotational/torque-model-setup.html">Torque Model Setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../propagation-setup/rotational/available-torque-models.html">Available Torque Models</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/mass.html">Mass Dynamics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/multi-type.html">Multi-type dynamics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/multi-body.html">Multi-body dynamics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/multi-hybrid-arc.html">Multi- and hybrid-arc dynamics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/processed-propagated-elements.html">Processed vs. Propagated State Elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/integration-setup.html">Integration Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagation-setup/printing-processing-results.html">Printing and processing the results</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../propagating-dynamics.html">Propagating Dynamics</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../propagating-dynamics/propagation-results.html">Propagation results</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagating-dynamics/propagation-architecture.html">Propagation architecture</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../propagating-variational-simulation.html">Propagating Variational Equations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../propagating-variational-equations/parameter-settings.html">Parameter Settings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../propagating-variational-equations/single-arc-variational-propagation.html">Single-arc Variational Equations Propagation</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../state-estimation.html">State Estimation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../state-estimation/link-ends-setup.html">Link Ends Setup</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../state-estimation/observation-model-setup.html">Observation Model Setup</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../state-estimation/observation-model-setup/observation-models.html">Available Observation Models</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../state-estimation/observation-simulation.html">Observation Creation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../state-estimation/observation-simulation/creating-observations.html">Creating Observations</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/creating-observations/simulating-observations.html">Simulating Observations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/creating-observations/loading-real-data.html">Loading Real Tracking Data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/creating-observations/pseudo-observations.html">Pseudo-observations from Ephemerides</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/creating-observations/manually-created-observations.html">Manual Observation Collections</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../state-estimation/observation-simulation/observation-collection-manipulation.html">Observation Collection Manipulation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/observation-collection-manipulation/extracting-information.html">Extracting Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/observation-collection-manipulation/modifying-collections.html">Modifying Collections</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/observation-collection-manipulation/dependent-variables.html">Using Dependent Variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../state-estimation/observation-simulation/observation-collection-manipulation/processing-observations.html">Processing Observations</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../state-estimation/estimation-settings.html">Performing the estimation</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../prelim-mission-design.html">Preliminary Mission Design</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../prelim-mission-design/mga-transfer.html">Multiple Gravity Assists Transfer</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../mathematics.html">Mathematics</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../mathematics/interpolators.html">Interpolators</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference external" href="https://raw.githubusercontent.com/tudat-team/tudat-space/master/Tudat_mathematical_model_definition.pdf">Mathematical model definition</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Interface with other libraries</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../advanced-topics/optimization-pygmo.html">Optimization with PyGMO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../advanced-topics/parallelization.html">Parallelization with Python</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../advanced-topics/post-processing-python.html">Post-processing Results in Python</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">TudatPy Project Updates</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../project-updates/migration-guide.html">Migration Guide</a></li>
+</ul>
+</div>
+</nav></div>
+<div class="sidebar-primary-item">
+<div class="flat" data-ea-manual="true" data-ea-publisher="readthedocs" data-ea-type="readthedocs-sidebar" id="ethical-ad-placement">
+</div></div>
+</div>
+<div class="sidebar-primary-items__end sidebar-primary__section">
+<div class="sidebar-primary-item">
+<div class="flat" data-ea-manual="true" data-ea-publisher="readthedocs" data-ea-type="readthedocs-sidebar" id="ethical-ad-placement">
+</div></div>
+</div>
+</div>
+<main class="bd-main" id="main-content" role="main">
+<div class="bd-content">
+<div class="bd-article-container">
+<div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+<div class="header-article-items__start">
+<div class="header-article-item">
+<nav aria-label="Breadcrumb" class="d-print-none">
+<ul class="bd-breadcrumbs">
+<li class="breadcrumb-item breadcrumb-home">
+<a aria-label="Home" class="nav-link" href="../../../../index.html">
+<i class="fa-solid fa-home"></i>
+</a>
+</li>
+<li class="breadcrumb-item"><a class="nav-link" href="../../../../index-user-guide.html">User Guide</a></li>
+<li class="breadcrumb-item"><a class="nav-link" href="../../../state-propagation.html">State Propagation</a></li>
+<li class="breadcrumb-item"><a class="nav-link" href="../../environment-setup.html">Environment Setup</a></li>
+<li class="breadcrumb-item"><a class="nav-link" href="../creation-celestial-body-settings.html">Creating the bodies</a></li>
+<li aria-current="page" class="breadcrumb-item active"><span class="ellipsis">Spacecraft macromodels</span></li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+</div>
+<div id="searchbox"></div>
+<article class="bd-article">
+<section id="spacecraft-macromodels">
+<span id="id1"></span><h1>Spacecraft macromodels<a class="headerlink" href="#spacecraft-macromodels" title="Link to this heading">#</a></h1>
+<p>The macromodel of a spacecraft is simplified by a series of panels, which can be defined independently depending on their type (frame-fixed, time-variable, body-tracking) using the functions of the module <code class="xref py py-class docutils literal notranslate"><span class="pre">vehicle_systems</span></code>.</p>
+<p>Manually defining each spacecraft panel takes time. To make things easier, the functions below let you define several panels at once.</p>
+<section id="box-wing-model">
+<h2>Box-wing model<a class="headerlink" href="#box-wing-model" title="Link to this heading">#</a></h2>
+<p>This is the simplest macromodel available and consists of 8 panels, 6 for the bus and 2 for the solar arrays. The bus is fixed to the rotation frame defined for the spacecraft, while the solar arrays are set to track the Sun.</p>
+<p>The dimensions of the spacecraft must be defined as inputs to the function <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.box_wing_panelled_body_settings" title="(in TudatPy API)"><code class="xref py py-func docutils literal notranslate"><span class="pre">box_wing_panelled_body_settings()</span></code></a>, which creates a <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.FullPanelledBodySettings" title="(in TudatPy API)"><code class="xref py py-class docutils literal notranslate"><span class="pre">FullPanelledBodySettings</span></code></a> object.</p>
+</section>
+<section id="full-macromodel">
+<h2>Full macromodel<a class="headerlink" href="#full-macromodel" title="Link to this heading">#</a></h2>
+<p>For more complex geometries it might become necessary to define a larger number of panels. Usually macromodels are distributed or can be modelled as CAD files. These files can be imported into <a class="reference external" href="https://www.blender.org/">Blender</a> (a middle step to make the files compatible with Tudat, more information in <a class="reference internal" href="#spacecraft-macromodels-tutorial"><span class="std std-ref">How to create and load a full macromodel</span></a>) and later exported as <cite>.dae</cite> file format.</p>
+<p>The function <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.body_panel_settings_list_from_dae" title="(in TudatPy API)"><code class="xref py py-func docutils literal notranslate"><span class="pre">body_panel_settings_list_from_dae()</span></code></a> allows to load the macromodel from a DAE file and creates a list of <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.BodyPanelSettings" title="(in TudatPy API)"><code class="xref py py-class docutils literal notranslate"><span class="pre">BodyPanelSettings</span></code></a>.</p>
+</section>
+<section id="how-to-create-and-load-a-full-macromodel">
+<span id="spacecraft-macromodels-tutorial"></span><h2>How to create and load a full macromodel<a class="headerlink" href="#how-to-create-and-load-a-full-macromodel" title="Link to this heading">#</a></h2>
+<p>A complete a macromodel is a powerful tool that requires multiple steps to set up. This tutorial will
+cover all the steps from the creation of the macromodel in a CAD software to the loading in Tudat. The spacecraft used in this
+example is NASA Mars Reconnaissance Orbiter (MRO).</p>
+<section id="creating-the-cad-model">
+<h3>Creating the CAD model<a class="headerlink" href="#creating-the-cad-model" title="Link to this heading">#</a></h3>
+<p>Precise spacecraft models are usually available but the surface is discretised in a large number of panels
+which would significantly increase the computational load. For this reason, the user should aim to reduce the number of panels in the 100s.
+On top of that, spacecraft models are usually static and do not have built-in joints for the moving parts (if present).</p>
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="../../../../_images/MRO_NASA_model.png"><img alt="../../../../_images/MRO_NASA_model.png" src="../../../../_images/MRO_NASA_model.png" style="width: 600px;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">MRO spacecraft model (around 15000 panels) from <a class="reference external" href="https://science.nasa.gov/resource/mars-reconnaissance-orbiter-3d-model/">NASA website</a>.</span><a class="headerlink" href="#id2" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+<p>Therefore, the first step requires to create the CAD model by simplifying the structure and modelling each part as a standalone CAD model.
+It’s paramount to remain consistent with the rotational frames these parts are attached to, especially their origin (which is usually the rotation gimball) and the axis orientation.
+For most scientific missions, the frame origin and axis orientation are defined in SPICE Frame Kernels (FK).</p>
+<figure class="align-center" id="id3">
+<a class="reference internal image-reference" href="../../../../_images/MRO_FK.png"><img alt="../../../../_images/MRO_FK.png" src="../../../../_images/MRO_FK.png" style="width: 400px;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Example of MRO spacecraft Bus Frame from <a class="reference external" href="https://naif.jpl.nasa.gov/pub/naif/pds/data/mro-m-spice-6-v1.0/mrosp_1000/data/fk/mro_v16.tf">NASA NAIF website</a>.</span><a class="headerlink" href="#id3" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+<p>After having retrieved all the dimensions and frame informations, with some creativity and patience, all parts should be created in CAD accordingly.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The user should make sure to model each part as a standalone file if planning to use moving parts. The parts <strong>must not</strong> intersect when assembled together!
+Due to meshing constraints, the user <strong>must not</strong> use non-planar geometries like spheres, paraboloids, or similar shapes.</p>
+</div>
+</section>
+<section id="post-processing-the-cad-model-in-blender">
+<h3>Post-processing the CAD model in Blender<a class="headerlink" href="#post-processing-the-cad-model-in-blender" title="Link to this heading">#</a></h3>
+<p>After all the parts have been modelled in any CAD software of choice, they must be exported in <cite>.stl</cite> format, making sure the <em>export units</em> match the units set while modelling.
+The part can then be loaded in Blender using <cite>File -&gt; Import -&gt; STL</cite>. In the pop-up menu on the left under <cite>General -&gt; Scale</cite>, the scale can be adjusted from the unit used during modelling
+to meters (dafault unit in Blender), this option is also available in Tudat when loading the model.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Consistency between units is fundamental to the correct implementation of the model. It is possible to check the size of the panels in <cite>Edit Mode</cite> by
+toggling on the options <cite>Edge Length</cite> and <cite>Face Aerea</cite> (as in the image below).
+After exporting the model in <cite>.dae</cite> format (which is unitless), it is possible to double-check manually the units once more.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../../../../_images/blender_check_units.png"><img alt="../../../../_images/blender_check_units.png" src="../../../../_images/blender_check_units.png" style="width: 300px;"/>
+</a>
+</figure>
+</div>
+<p>By default, Blender will mesh the part automatically but not always in the most efficient way possible.
+To force a smaller number of panels go to <cite>Object Mode</cite>, then <cite>Modifiers -&gt; Add modifier -&gt; Generate -&gt; Decimate</cite>, toggle on <cite>Triangulate</cite> and reduce the ratio until
+right before the object starts deforming. In the left corner of the tab it is possible to see the <cite>Face count</cite> (see the figure below). Once done, click on the drop down menu in
+the same tab and hit <cite>Apply</cite>, then inspect the new mesh in <cite>Edit Mode</cite>.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../../../../_images/blender_decimate.png"><img alt="../../../../_images/blender_decimate.png" src="../../../../_images/blender_decimate.png" style="width: 400px;"/>
+</a>
+</figure>
+<p>After the meshing, it important to define group of panels with the same material properties.
+Note that at this point no properties can be defined (this will be dealt at the Tudat level), only the grouping of the panels.
+To do so, in <cite>Edit Mode</cite> in the <cite>Materials</cite> tab add as many materials as needed (see the figure below).
+Only the name matters, as it will be the one used in Tudat. The color is only used to distinguish the panels visually.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../../../../_images/blender_materials.png"><img alt="../../../../_images/blender_materials.png" src="../../../../_images/blender_materials.png" style="width: 400px;"/>
+</a>
+</figure>
+<p>The post-processing is now completed, the file can be exported using <cite>File -&gt; Export -&gt; Collada (.dae)</cite>. Make sure to inspect the file manually to double-check the units.</p>
+<figure class="align-center" id="id4">
+<a class="reference internal image-reference" href="../../../../_images/MRO_macromodel.png"><img alt="../../../../_images/MRO_macromodel.png" src="../../../../_images/MRO_macromodel.png" style="width: 600px;"/>
+</a>
+<figcaption>
+<p><span class="caption-text">Example of MRO spacecraft macromodel assembled in Blender with panels grouped by material, 112 panels.</span><a class="headerlink" href="#id4" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+</section>
+<section id="loading-the-macromodel">
+<h3>Loading the macromodel<a class="headerlink" href="#loading-the-macromodel" title="Link to this heading">#</a></h3>
+<p>To load one part in Tudat, the function <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.body_panel_settings_list_from_dae" title="(in TudatPy API)"><code class="xref py py-func docutils literal notranslate"><span class="pre">body_panel_settings_list_from_dae()</span></code></a> is used.
+The code snippet below summarises the loading process and the definition of rotation settings for the High Gain Antenna (HGA) part.
+On top of the path to the files, the function requires a dictionary of <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.MaterialProperties" title="(in TudatPy API)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MaterialProperties</span></code></a>
+(where the keys are the name of the materials set in Blender), a dictionary of reradiation settings (same keys),
+and the frame origin in Cartesian coordinates in the body-fixed frame (in this case, the HGA gimball position), the units used, and lastly the frame ID.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio"/>
+<label class="sd-tab-label" data-sync-group="coding-language" data-sync-id="python" for="sd-tab-item-0">
+Python</label><div class="sd-tab-content docutils">
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-muted sd-bg-text-muted">
+<span class="sd-summary-text">Required</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg aria-hidden="true" class="sd-octicon sd-octicon-chevron-right" height="1.5em" version="1.1" viewbox="0 0 24 24" width="1.5em"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># required import statements</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tudatpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">environment_setup</span>
+
+<span class="c1"># prerequisite api steps</span>
+<span class="c1"># 1.1 create bodies</span>
+</pre></div>
+</div>
+</div>
+</details><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define material properties</span>
+<span class="n">hga_material_properties</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">'HGA_front'</span><span class="p">:</span> <span class="n">environment_setup</span><span class="o">.</span><span class="n">vehicle_systems</span><span class="o">.</span><span class="n">material_properties</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+    <span class="s1">'HGA_back'</span><span class="p">:</span> <span class="n">environment_setup</span><span class="o">.</span><span class="n">vehicle_systems</span><span class="o">.</span><span class="n">material_properties</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+    <span class="p">}</span>
+
+<span class="c1"># Define re-radiation settings</span>
+<span class="n">hga_reradiation_settings</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">'HGA_front'</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s1">'HGA_back'</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="p">}</span>
+
+<span class="c1"># Define frame origin</span>
+<span class="n">hga_frame_origin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+    <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.15</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.52</span>
+    <span class="p">])</span>
+
+<span class="c1"># Load .dae part</span>
+<span class="n">hga_panels</span> <span class="o">=</span> <span class="n">environment_setup</span><span class="o">.</span><span class="n">vehicle_systems</span><span class="o">.</span><span class="n">body_panel_settings_list_from_dae</span><span class="p">(</span>
+    <span class="s2">"path/to/hga.dae"</span><span class="p">,</span>
+    <span class="n">hga_frame_origin</span><span class="p">,</span>
+    <span class="n">hga_material_properties</span><span class="p">,</span>
+    <span class="n">hga_reradiation_settings</span><span class="p">,</span>
+    <span class="s2">"mm"</span><span class="p">,</span>                        <span class="c1"># units of .dae part</span>
+    <span class="s2">"MRO_HGA_OUTER_GIMBAL"</span>      <span class="c1"># omit this if it coincides to the body-fixed frame</span>
+    <span class="p">)</span>  
+
+<span class="c1"># Add rotation settings for moving parts</span>
+<span class="n">hga_rotation_settings</span> <span class="o">=</span> <span class="n">environment_setup</span><span class="o">.</span><span class="n">rotation_model</span><span class="o">.</span><span class="n">spice</span><span class="p">(</span>
+ <span class="s1">'MRO_SPACECRAFT'</span><span class="p">,</span><span class="s1">'MRO_HGA_OUTER_GIMBAL'</span><span class="p">,</span> <span class="s2">""</span>
+ <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>The following code snippet assumes all the other parts have been loaded too and proceeds to merge the list
+of panels and rotation settings to then create a <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.FullPanelledBodySettings" title="(in TudatPy API)"><code class="xref py py-class docutils literal notranslate"><span class="pre">FullPanelledBodySettings</span></code></a> object using <a class="reference external" href="https://py.api.tudat.space/en/latest/dynamics/environment_setup/vehicle_systems.html#tudatpy.dynamics.environment_setup.vehicle_systems.full_panelled_body_settings" title="(in TudatPy API)"><code class="xref py py-func docutils literal notranslate"><span class="pre">full_panelled_body_settings()</span></code></a>.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-1" name="sd-tab-set-1" type="radio"/>
+<label class="sd-tab-label" data-sync-group="coding-language" data-sync-id="python" for="sd-tab-item-1">
+Python</label><div class="sd-tab-content docutils">
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-muted sd-bg-text-muted">
+<span class="sd-summary-text">Required</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg aria-hidden="true" class="sd-octicon sd-octicon-chevron-right" height="1.5em" version="1.1" viewbox="0 0 24 24" width="1.5em"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># required import statements</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tudatpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">environment_setup</span>
+
+<span class="c1"># prerequisite api steps</span>
+<span class="c1"># 1.1 create bodies</span>
+</pre></div>
+</div>
+</div>
+</details><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Merge panels lists</span>
+<span class="n">list_panel_body_settings</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">bus_panels</span><span class="p">,</span> <span class="n">hga_panels</span><span class="p">,</span> <span class="n">sapx_panels</span><span class="p">,</span> <span class="n">samx_panels</span>
+    <span class="p">]</span>
+
+<span class="c1"># Merge rotation settings (BUS by default coincides with body-fixed frame)</span>
+<span class="n">dict_rotation_settings</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"MRO_HGA_OUTER_GIMBAL"</span><span class="p">:</span> <span class="n">hga_rotation_settings</span><span class="p">,</span>
+    <span class="s2">"MRO_SAPX"</span><span class="p">:</span> <span class="n">sapx_rotation_settings</span><span class="p">,</span>
+    <span class="s2">"MRO_SAMX"</span><span class="p">:</span> <span class="n">samx_rotation_settings</span>
+    <span class="p">}</span>
+
+<span class="c1"># Create FullPanelledBodySettings</span>
+<span class="n">full_panelled_body</span> <span class="o">=</span> <span class="n">environment_setup</span><span class="o">.</span><span class="n">vehicle_systems</span><span class="o">.</span><span class="n">full_panelled_body_settings</span><span class="p">(</span>
+    <span class="n">list_panel_body_settings</span><span class="p">,</span>
+    <span class="n">dict_rotation_settings</span>
+    <span class="p">)</span>
+
+<span class="c1"># Assign FullPanelledBodySettings to the vehicle (here MRO)</span>
+<span class="n">body_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'MRO'</span><span class="p">)</span><span class="o">.</span><span class="n">vehicle_shape_settings</span> <span class="o">=</span> <span class="n">full_panelled_body</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>The macromodel is now fully loaded and can be used to compute panelled radiation pressure and aerodynamic coefficients with and without self-shadowing.</p>
+</section>
+</section>
+</section>
+</article>
+<footer class="prev-next-footer d-print-none">
+<div class="prev-next-area">
+<a class="left-prev" href="../creation-celestial-body-settings.html" title="previous page">
+<i class="fa-solid fa-angle-left"></i>
+<div class="prev-next-info">
+<p class="prev-next-subtitle">previous</p>
+<p class="prev-next-title">Creating the bodies</p>
+</div>
+</a>
+<a class="right-next" href="../creating-modifying-bodies.html" title="next page">
+<div class="prev-next-info">
+<p class="prev-next-subtitle">next</p>
+<p class="prev-next-title">Modifying the bodies</p>
+</div>
+<i class="fa-solid fa-angle-right"></i>
+</a>
+</div>
+</footer>
+</div>
+<dialog id="pst-secondary-sidebar-modal"></dialog>
+<div class="bd-sidebar-secondary bd-toc" id="pst-secondary-sidebar"><div class="sidebar-secondary-items sidebar-secondary__inner">
+<div class="sidebar-secondary-item">
+<div class="page-toc tocsection onthispage" id="pst-page-navigation-heading-2">
+<i class="fa-solid fa-list"></i> On this page
+  </div>
+<nav aria-labelledby="pst-page-navigation-heading-2" class="page-toc" id="pst-page-toc-nav">
+<ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#box-wing-model">Box-wing model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-macromodel">Full macromodel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-create-and-load-a-full-macromodel">How to create and load a full macromodel</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-the-cad-model">Creating the CAD model</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#post-processing-the-cad-model-in-blender">Post-processing the CAD model in Blender</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-the-macromodel">Loading the macromodel</a></li>
+</ul>
+</li>
+</ul>
+</nav></div>
+<div class="sidebar-secondary-item">
+<div class="tocsection editthispage">
+<a href="https://github.com/tudat-team/tudat-space/edit/develop/docs/source/user-guide/state-propagation/environment-setup/creation-celestial-body-settings/spacecraft-macromodels.rst">
+<i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+</div>
+</div>
+<div class="sidebar-secondary-item">
+<div class="tocsection sourcelink">
+<a href="../../../../_sources/user-guide/state-propagation/environment-setup/creation-celestial-body-settings/spacecraft-macromodels.rst.txt">
+<i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+</div>
+</div>
+</div></div>
+</div>
+<footer class="bd-footer-content">
+</footer>
+</main>
+</div>
+</div>
+<!-- Scripts loaded after <body> so the DOM is not blocked -->
+<script defer="" src="../../../../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer="" src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+<footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+<div class="footer-items__start">
+<div class="footer-item">
+<p class="copyright">
+    
+      © Copyright 2026, Tudat Team.
+      <br/>
+</p>
+</div>
+<div class="footer-item">
+<p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
+    <br/>
+</p>
+</div>
+</div>
+<div class="footer-items__end">
+<div class="footer-item">
+<p class="theme-version">
+<!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.17.1.
+</p></div>
+</div>
+</div>
+</footer>
+</body>
+</html>
