@@ -76,7 +76,7 @@ $$
 I_{demo} = I_{bus} + N_{rw}m_{rw}r_{off}^2 I_3
 $$
 
-这个偏置项是首版量级近似，等价于把四个轮质量的平行轴贡献折成各向同性项。若后续要研究安装位置或非对称结构，需使用每个部件的完整平行轴张量。
+这个偏置项是首版量级近似，等价于把四个轮质量的平行轴贡献折成各向同性项。若后续在 `v0.5` 高保真建模阶段研究安装位置或非对称结构，需使用每个部件的完整平行轴张量。
 
 完整平行轴写法是：
 
@@ -84,7 +84,7 @@ $$
 I_{P}=I_{C}+m\left((d^\top d)I_3-dd^\top\right)
 $$
 
-其中 `d` 是部件质心相对总参考点的位置。这个式子是后续把轮、电池、载荷和展开件逐件并入质量属性的基础。
+其中 `d` 是部件质心相对总参考点的位置。这个式子是 `v0.5` 把轮、电池、载荷和展开件逐件并入质量属性的基础。
 
 ## 资料来源和边界
 
@@ -92,7 +92,7 @@ $$
 | --- | --- | --- |
 | 四元数运动学、欧拉刚体方程 | Wertz, *Spacecraft Attitude Determination and Control*；Schaub and Junkins, *Analytical Mechanics of Space Systems* | 当前刚体真值模型 |
 | 刚体姿态真值模型边界 | [GMAT Spacecraft Attitude](https://documentation.help/GMAT/SpacecraftAttitude.html) | 说明刚体建模并非柔性高保真模型 |
-| 多体和柔性升级方向 | [NASA 42](https://github.com/ericstoneking/42)，Li et al. 2022，He and Cao 2023，Murilo et al. 2021 | 后续扩展，不在本轮 |
+| 多体和柔性升级方向 | [NASA 42](https://github.com/ericstoneking/42)，Li et al. 2022，He and Cao 2023，Murilo et al. 2021 | `v0.5+` 高保真扩展，不在当前平台架构阶段 |
 | 1U 质量、尺寸、轮偏置首版数值 | [CubeSat wheel demo `config.py`](https://github.com/brunopinto900/attitude_control_reaction_wheels/blob/main/config.py) | 当前演示质量模型 |
 
 ## 当前假设

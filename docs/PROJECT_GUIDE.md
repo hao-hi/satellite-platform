@@ -129,21 +129,27 @@ flowchart LR
 
 ## 4. 从仿真库演进到平台
 
-当前版本适合在 Python 代码中直接构造系统、运行单个场景并读取 `SimulationResult`。这对控制律验证、估计器调试和论文式数值实验已经足够清晰，但还不是完整仿真平台。平台化的 `v0.2` 目标是让用户不必改示例脚本，也能通过配置文件组织场景、批量实验和结果归档。
+当前版本适合在 Python 代码中直接构造系统、运行单个场景并读取 `SimulationResult`。这对控制律验证、估计器调试和论文式数值实验已经足够清晰，但完整平台还需要项目工作区、实验计划、运行编排、记录器和报告器分层。
 
-推荐的演进方式是新增配置驱动旁路，而不是替换现有入口：
+平台化演进分两步：
+
+1. `v0.2` 先提供配置驱动场景和 `StudyRunner` 兼容入口。
+2. `v0.3` 起以 `PlatformProject`、`ExperimentPlan` 和 `ExperimentRunner` 作为长期主平台入口，`StudyRunner` 只作为兼容壳。
+
+当前平台流为：
 
 ```text
-配置文件
+Project / Workspace
+  -> ExperimentPlan
   -> ScenarioSpec
   -> ScenarioCompiler
   -> SatelliteSystem + SimulationConfig
-  -> ScenarioRunner / StudyRunner
+  -> ScenarioRunner
   -> run 级 manifest/metrics/time_history/report
-  -> study 级 summary_metrics.csv + study_manifest.json
+  -> experiment 级 README/index/summary/manifest
 ```
 
-因此，`ScenarioRunner.run(SimulationConfig)`、`build_default_system()` 和 `build_cubesat_reaction_wheel_system()` 仍应保持可用。新平台能力只负责把“场景意图”和“实验批次”编译到这些旧入口上。
+因此，`ScenarioRunner.run(SimulationConfig)`、`build_default_system()` 和 `build_cubesat_reaction_wheel_system()` 仍应保持可用。平台能力负责把“项目资源、场景意图、实验批次和结果产物”组织起来，不改变底层物理组件的职责。
 
 ### 4.1 轻量场景配置草案
 
@@ -216,7 +222,7 @@ outputs:
   save_markdown_report: true
 ```
 
-这个草案描述第一阶段已经具备的场景信息：时间、随机种子、系统构造、控制器参数、传感器噪声、初始状态、参考姿态、轻量轨道环境、反作用轮配置、起始轮失效、验收门限和输出。后续版本可以在不破坏旧字段的基础上增加异步采样、时序故障注入和任务模式。
+这个草案描述第一阶段已经具备的场景信息：时间、随机种子、系统构造、控制器参数、传感器噪声、初始状态、参考姿态、轻量轨道环境、反作用轮配置、起始轮事件、验收门限和输出。后续版本应优先在 `ExperimentPlan`、runtime 和 mission sequence 层增加异步采样、模式切换和参考切换，而不是扩张单个场景字段。
 
 ### 4.2 轻量实验产物
 
@@ -236,18 +242,19 @@ outputs:
 | --- | --- |
 | `summary_metrics.csv` | 汇总所有 run 的指标、参数、系统选择、故障数量、验收结果和输出目录，便于批量筛选和画图。 |
 | `study_manifest.json` | 记录 study 级生成时间、satmodel 版本、run 数和摘要行。 |
+| `experiment_manifest.json` | 记录 v0.3 实验计划、场景、扫描/Monte Carlo 设置、结果 schema 和 run 摘要。 |
+| `index.json` | 面向后续结果浏览、可视化和自动筛选的机器可读索引。 |
 
 复杂数据格式可以后置：Parquet 更适合大规模批量指标分析，HDF5 更适合保存稠密高维遥测和回放数据。但在 `v0.2`，优先形成可运行、可复现、少依赖的工作流。
 
-### 4.3 后续平台边界
+### 4.3 成熟平台式后续边界
 
-平台化后续阶段可以逐步加入：
+平台化后续阶段按成熟项目范式推进：
 
-- `StudyRunner`：组织单场景、参数扫描、Monte Carlo 和控制器对比。
-- 多速率调度器：让动力学、传感器、估计器、控制器和日志记录使用不同采样周期。
-- 任务模式：支持 detumble、惯性定向、对日、对地、安全模式和大角度机动。
-- 故障注入：当前支持 `when_s=0.0` 的反作用轮禁用；后续扩展传感器丢包、执行器降额和模式切换事件。
-- 可视化和回放：展示姿态误差、轮速、扰动力矩预算、模式时间线和三维姿态。
+- v0.3 平台架构收敛：`satmodel.platform` 已拆成 `plan.py`、`runner.py`、`records.py`、`reporting.py` 和 `project.py`，`core.py` 仅作为兼容转发入口。
+- v0.4 运行时与任务序列：引入 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule`、`MissionSequence` 和 `ModeTimeline`，先服务正常任务流程、多速率调度和参考/模式切换。
+- v0.5 高保真建模：按 environment setup、propagation setup、spacecraft model、actuator model、sensor model 分层升级。
+- v0.6 可视化和产品化：实验数据库、结果浏览、run 对比、三维回放、发布流程和 schema 迁移。
 
 这些能力应继续复用现有组件边界，避免把任务逻辑、文件读写或可视化代码混入动力学、控制器和扰动模型。
 

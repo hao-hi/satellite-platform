@@ -44,6 +44,18 @@
 
 `v0.2` 之后的平台化方向是在现有模型库外侧增加编排层，而不是重写底层物理组件。现有 `ScenarioRunner`、`SimulationConfig` 和 `SimulationResult` 应继续作为稳定单场景入口；新增平台入口负责把配置、实验和结果组织成可复现工作流。
 
+平台层统一参考成熟项目的分层口径：
+
+| 平台层 | 借鉴范式 | satmodel 边界 |
+| --- | --- | --- |
+| Project | GMAT 资源管理、Tudat settings 容器 | 工作区、场景目录、结果目录和平台 manifest。 |
+| Environment Setup | Tudat `SystemOfBodies` 和环境模型设置 | 轨道、地磁、大气、太阳、几何和外部场。 |
+| Propagation Setup | Tudat propagator settings | 初始状态、传播时长、步长、积分器、被记录变量。 |
+| Runtime | Basilisk process/task/module | 后续多速率调度、任务优先级和模块执行顺序。 |
+| Mission Sequence | GMAT mission control sequence | 后续模式切换、参考切换和任务步骤。 |
+| Recorder | Basilisk/Tudat 输出变量 | run record、指标、时序、事件和遥测。 |
+| Report | 平台后处理层 | Markdown/CSV/JSON 报告、索引和实验 manifest。 |
+
 建议的第一阶段架构流为：
 
 ```text
@@ -64,7 +76,40 @@ ScenarioSpec
 
 `v0.2` 默认采用轻量实现：优先使用标准库数据结构、JSON、CSV 和 Markdown。Pydantic、Parquet、HDF5、数据库和 Web 服务可作为后续增强，不作为第一阶段的硬依赖。
 
-更长远的 `v0.3` 多速率架构可以在这个流上替换运行时：
+`v0.3` 已经把平台编排提升为独立 `satmodel.platform` 层：
+
+```text
+PlatformProject
+    -> ExperimentPlan
+    -> ExperimentRunner
+    -> ScenarioCompiler / ScenarioRunner
+    -> ResultWriter
+    -> ReportBuilder
+    -> Experiment Manifest / Index / Report
+```
+
+各层职责：
+
+- `PlatformProject`：管理平台工作区、默认场景目录和结果目录。
+- `ExperimentPlan`：描述实验计划，包括单场景、参数扫描、Monte Carlo 和输出根目录。
+- `ExperimentRunner`：执行计划，生成标准化 run record。
+- `ReportBuilder`：生成 `experiment_manifest.json`、`index.json`、`summary_metrics.csv` 和 `README.md`。
+- `StudyRunner`：保留为兼容壳，内部委托给 `ExperimentRunner`。
+
+`satmodel.platform` 已按成熟项目的维护方式拆成聚焦模块，`core.py` 仅保留为兼容转发入口：
+
+```text
+satmodel/platform/
+  plan.py
+  runner.py
+  records.py
+  reporting.py
+  project.py
+```
+
+当前职责边界是：`ExperimentPlan` 负责配置契约，`ExperimentRunner` 负责执行，`ExperimentRecord`/`ExperimentSummary` 负责运行结果，`ReportBuilder` 负责数据产品，`PlatformProject` 负责工作区路径和资源定位。
+
+更长远的 v0.4 运行时架构可以在这个平台流上替换当前单速率执行器：
 
 ```text
 ScenarioSpec
@@ -75,6 +120,8 @@ ScenarioSpec
 ```
 
 多速率调度器应以当前单步数据流作为语义基线。等频配置下，动力学、传感器、估计器、控制器、执行器和记录顺序应保持可解释的一致性。
+
+任务模式和调度优先服务正常任务流程，例如 detumble、惯性定向、对日、对地和安全模式。故障注入、丢包和降额属于 mission event 的后续扩展，不作为下一阶段主线。
 
 ## 两条默认系统路径
 

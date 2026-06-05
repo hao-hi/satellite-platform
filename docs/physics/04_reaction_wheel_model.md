@@ -188,6 +188,8 @@ $$
 - 磁力矩器动量卸载
 - 外部 QP/凸优化分配、最小无穷范数分配和完整失效重构控制
 
+这些执行机构细节统一归入 `v0.5` 高保真建模阶段；`v0.3-v0.4` 优先完成平台架构、运行时和任务序列，不把故障容错作为主线。
+
 ## 来源映射
 
 | 内容 | 来源 | 本轮采用方式 |
@@ -195,9 +197,9 @@ $$
 | 反作用轮作为带速度与力矩限制的执行机构 | [Basilisk reaction wheel state effector](https://avslab.github.io/basilisk/Documentation/simulation/dynamics/reactionWheels/reactionWheelStateEffector.html) | 轮速、命令和遥测边界参考 |
 | 四轮金字塔、伪逆分配、失效演示 | [reaction wheel CubeSat demo](https://github.com/brunopinto900/attitude_control_reaction_wheels) | 轴向与参数基线参考，代码重写 |
 | 三轮/四轮构型、动量管理 | Lee et al., "A study of reaction wheel configurations for a 3-axis satellite attitude control" | 说明配置和动量管理是联合设计问题 |
-| 轮组力矩/动量包络 | Markley et al., "Maximum Torque and Momentum Envelopes for Reaction Wheel Arrays" | 后续约束分配和容量包络依据 |
-| 轮系不确定和鲁棒控制背景 | Chen and Hu 2023，Hasan et al. 2022 | 后续控制研究锚点 |
-| 四轮分配的更高级约束讨论 | 金字塔轮组分配文献，例如最小无穷范数方向 | 后续，不在本轮 |
+| 轮组力矩/动量包络 | Markley et al., "Maximum Torque and Momentum Envelopes for Reaction Wheel Arrays" | `v0.5` 约束分配和容量包络依据 |
+| 轮系不确定和鲁棒控制背景 | Chen and Hu 2023，Hasan et al. 2022 | `v0.5+` 控制研究锚点 |
+| 四轮分配的更高级约束讨论 | 金字塔轮组分配文献，例如最小无穷范数方向 | `v0.5+` 扩展，不在当前平台架构阶段 |
 
 ## 当前默认数值
 

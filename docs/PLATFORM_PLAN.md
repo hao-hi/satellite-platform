@@ -1,214 +1,172 @@
-# satmodel v0.2 平台化实施计划
+# satmodel 平台化路线与实施计划
 
-本文档记录 `satmodel` 从轻量姿控仿真库演进到配置驱动实验平台的实施路线。当前 `v0.1` 稳定研究库能力由 `v0.1.0-current` 标签保留；`v0.2` 的目标是在不破坏旧 API 的前提下补出轻量平台骨架。
+本文档记录 `satmodel` 从轻量姿控仿真库演进到成熟实验平台的实施路线。整体范式参考 Basilisk 的 process/task/module 分层、Tudat 的 environment setup / propagation setup / output 分离，以及 GMAT 的资源与 mission sequence 组织方式。当前 `v0.1` 稳定研究库能力由 `v0.1.0-current` 标签保留。
 
-## 目标
+## 平台目标
 
-`v0.2` 先解决编排和复现问题，而不是优先堆叠高保真模型。
+平台化优先解决实验组织、复现、结果追踪和运行编排问题，而不是一开始堆叠所有高保真模型。
 
 核心目标：
 
-1. 通过配置描述仿真场景，减少用户为每个实验改 Python 脚本的需求。
-2. 通过通用实验运行器组织单场景、参数扫描和轻量 Monte Carlo seed 批量实验。
-3. 通过标准化结果目录保存指标、时序、配置摘要和人读报告。
-4. 保持现有 `ScenarioRunner`、`SimulationConfig`、`SimulationResult` 和示例脚本可用。
+1. 用配置描述场景和实验计划，减少为每个实验改 Python 脚本的需求。
+2. 用 `PlatformProject` 管理工作区、场景、实验计划、结果目录和平台 manifest。
+3. 用 `ExperimentPlan` 表达单场景、参数扫描、Monte Carlo 和后续任务序列。
+4. 用 `ExperimentRunner` 执行计划并生成标准 run record。
+5. 用 `ReportBuilder` 统一生成人读报告和机器可读索引。
+6. 保持 `ScenarioRunner.run(SimulationConfig)` 等旧入口可用。
 
 非目标：
 
-1. `v0.2` 不重写动力学、控制器、估计器和扰动模型。
-2. `v0.2` 不强制引入 Pydantic、Parquet、HDF5、数据库或 Web 服务。
-3. `v0.2` 不把多速率调度、任务模式和高保真传感器作为首批必须交付。
+1. 不直接照搬 Basilisk、GMAT、Tudat 的源码或复杂依赖。
+2. 不把平台编排逻辑塞进动力学、控制器、执行机构或扰动模型。
+3. 不把故障注入作为下一阶段优先级；任务流程、模式和调度先服务正常仿真。
+4. 不强制引入数据库、Web UI、Parquet、HDF5 或 Pydantic。
 
-## 阶段交付物
+## 成熟平台分层
 
-### v0.2：轻量可用平台骨架
+| 层 | 职责 | satmodel 对应 |
+| --- | --- | --- |
+| Project | 工作区、场景目录、结果目录、manifest | `PlatformProject` |
+| Environment Setup | 轨道、地磁、大气、太阳、几何和外部场 | `ScenarioEnvironmentSpec`、`EnvironmentModel` |
+| Propagation Setup | 初始状态、积分器、时长、步长、被传播状态 | `ScenarioTimeSpec`、`SimulationConfig`、后续 propagation settings |
+| Runtime | process/task/module、调度周期、优先级 | 后续 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule` |
+| Mission Sequence | 模式切换、参考切换、实验步骤 | 后续 `MissionSequence`、`ModeTimeline` |
+| Recorder | run record、指标、时序、事件、遥测 | `ExperimentRecord`、`ResultWriter` |
+| Report | README、CSV、JSON index、实验 manifest | `ReportBuilder` |
 
-已经落地的第一批轻量接口：
+## v0.2：轻量可用平台骨架
+
+已经落地的轻量接口：
 
 | 接口 | 作用 |
 | --- | --- |
-| `ScenarioSpec` | 配置驱动场景对象，描述时间、初始状态、系统构造、控制器和输出。 |
+| `ScenarioSpec` | 配置驱动场景对象，描述时间、初始状态、系统构造、控制器、环境、执行机构、传感器、验收和输出。 |
 | `compile_scenario()` | 把 `ScenarioSpec` 编译为现有 `SatelliteSystem` 和 `SimulationConfig`。 |
-| `StudyRunner` | 组织单场景运行、简单参数扫描和轻量 Monte Carlo seed 批量实验。 |
+| `StudyRunner` | 兼容入口，组织单场景、简单参数扫描和轻量 Monte Carlo seed 批量实验。 |
 | `ResultWriter` | 将单个 `SimulationResult` 写为 `manifest.json`、`metrics.csv`、`time_history.csv`、`events.csv` 和 `README.md`。 |
-| `StudySummary` | 在实验根目录写出 `summary_metrics.csv` 和 `study_manifest.json`。 |
+| `StudySummary` | 兼容 summary facade，保留 v0.2 调用体验。 |
 
-推荐实现策略：
+v0.2 的设计原则仍然有效：标准库优先，JSON/CSV/Markdown 优先，复杂数据格式后置。
 
-1. 标准库优先，先用 dataclass、`json`、`csv` 和 `pathlib`。
-2. 配置格式可以先支持 JSON；YAML 支持作为可选增强，避免第一阶段增加依赖压力。
-3. `StudyRunner` 先覆盖单场景、简单参数扫描和固定 seed 序列 Monte Carlo；更复杂的随机分布采样后续再扩展。
-4. `ResultWriter` 先写小规模 CSV 和 Markdown 报告，后续再扩展 Parquet、HDF5 或 HTML。
+## v0.3：平台架构收敛
 
-### v0.3：调度、任务模式和故障注入
+当前已经开始落地的平台入口：
+
+| 接口 | 长期定位 |
+| --- | --- |
+| `PlatformProject` | 平台工作区入口，管理场景目录和结果目录。 |
+| `ExperimentPlan` | 长期主实验计划对象，描述场景、扫描、Monte Carlo、输出和验收。 |
+| `ExperimentRunner` | 长期主实验执行器，生成标准化 run record。 |
+| `ExperimentSummary` | 实验摘要对象，提供指标表、验收统计和最佳 run 查询。 |
+| `ReportBuilder` | study/experiment 级报告生成器。 |
+
+`satmodel.platform` 已经拆成长期维护所需的聚焦模块，`core.py` 仅作为兼容转发入口：
+
+```text
+satmodel/platform/
+  plan.py        ExperimentPlan 和加载/校验
+  runner.py      ExperimentRunner 和 run case 生成
+  records.py     ExperimentRecord 和 ExperimentSummary
+  reporting.py   ReportBuilder 和数据产物
+  project.py     PlatformProject 和工作区路径规则
+```
+
+兼容策略：
+
+1. `StudyRunner` 继续存在，但只作为兼容壳，内部委托 `ExperimentRunner`。
+2. `ResultWriter` 只负责 run 级产物；实验级产物由 `ReportBuilder` 负责。
+3. `satmodel-run-scenario` 继续可用；批量实验主入口转向 `satmodel-run-experiment`。
+4. `ScenarioRunner` 和 `SimulationConfig` 不因平台重构而改变语义。
+
+## v0.4：运行时与任务序列
+
+目标是建立成熟项目常见的 runtime / mission sequence 层。
 
 计划新增：
 
-1. 多速率调度器，让动力学、传感器、估计器、控制器和日志记录可使用不同周期。
-2. 模式管理器，支持 detumble、惯性定向、对日、对地、安全模式和大角度机动。
-3. 事件系统，支持故障注入、模式切换、传感器丢包和执行器降额。
-4. 事件日志产物，用于故障复现和回放。
+1. `RuntimeProcess`：一组 task 的执行容器。
+2. `RuntimeTask`：带更新周期、优先级和下次执行时间的任务。
+3. `RuntimeModule`：传感器、估计器、控制器、执行机构、记录器等可调度模块。
+4. `MissionSequence`：描述仿真任务步骤、参考切换和模式切换。
+5. `ModeTimeline`：记录 detumble、惯性定向、对日、对地、安全模式等模式区间。
 
-### v0.4：高保真模型
+本阶段优先服务正常任务流程和多速率调度；故障注入、丢包、降额可以后续作为 mission event 扩展。
 
-计划新增：
+## v0.5：高保真建模
 
-1. 面元几何、面元气动和面元太阳光压。
-2. 反作用轮摩擦、一阶滞后、安装误差和动量卸载。
-3. 磁力矩器、星敏感器、太阳敏感器、磁强计和更丰富的陀螺误差模型。
-4. IGRF、NRLMSIS、TLE/SGP4 和星历环境 provider 的参考验证场景。
-
-### v0.5：可视化和发布
+目标是把物理模型从轻量研究基线升级为更接近任务分析的工程基线。
 
 计划新增：
 
-1. 姿态误差、轮速、扰动力矩预算和模式时间线报告图。
-2. 三维姿态回放和实验目录浏览。
-3. 包构建检查、安装后 smoke test、CI、变更日志和版本策略。
-4. 结果 schema 版本和迁移策略。
+1. 环境高保真：IGRF、NRLMSIS、TLE/SGP4、星历太阳方向、半影/本影。
+2. 传播高保真：可替换积分器、dependent variables、终止条件和多弧传播预留。
+3. 航天器高保真：面元几何、面元气动、面元 SRP、质量属性组件化和时变惯量。
+4. 执行机构高保真：反作用轮摩擦、一阶滞后、安装误差、动量卸载和磁力矩器。
+5. 传感器高保真：星敏感器、太阳敏感器、磁强计和更完整的陀螺误差模型。
+6. 验证基线：Monte Carlo 场景、论文基准和 Basilisk/GMAT/Tudat 风格趋势对比。
 
-## 建议的数据产品
+## v0.6：可视化、数据库和产品化
 
-`v0.2` 每个 run 目录建议至少包含：
+计划新增：
+
+1. 实验目录浏览、指标筛选、run 对比和验收状态检索。
+2. 姿态误差、轮速、扰动力矩预算、模式时间线和控制诊断图。
+3. 三维姿态回放和 mission timeline 回放。
+4. 结果 schema 版本、迁移策略、变更日志和发布流程。
+5. CI、安装后 smoke test、构建检查和示例实验回归。
+
+## 数据产品
+
+每个 run 目录建议至少包含：
 
 | 文件 | 内容 |
 | --- | --- |
-| `manifest.json` | 场景名、schema 版本、随机种子、satmodel 版本、运行时间、验收结果和配置摘要。 |
+| `manifest.json` | 场景名、schema 版本、随机种子、satmodel 版本、验收结果和配置摘要。 |
 | `metrics.csv` | run 级指标，例如初始误差、末端误差、RMS 误差、控制力矩积分、峰值力矩和验收结果。 |
 | `time_history.csv` | 常用时序数据，例如时间、姿态误差、角速度、控制力矩和轮组摘要。 |
-| `events.csv` | 稀疏事件日志；当前记录起始反作用轮故障，后续扩展时序事件。 |
-| `README.md` | 自动生成报告，记录场景、参数、指标表和主要解释。 |
+| `events.csv` | 稀疏事件日志；当前只记录已有轻量事件，后续接入 mission timeline。 |
+| `README.md` | run 级人读报告。 |
 
 每个实验根目录建议至少包含：
 
 | 文件 | 内容 |
 | --- | --- |
-| `README.md` | study 级人读摘要，记录 run 数、通过/失败数量、通过率、最佳 run、最差 run、参数列、指标列和文件索引。 |
-| `index.json` | 面向后续平台浏览和可视化的机器可读索引，记录验收统计、最佳 run、参数列、指标列和所有 run 摘要。 |
-| `summary_metrics.csv` | 所有 run 的指标、参数列、系统选择、故障数量、验收结果和输出目录。 |
-| `study_manifest.json` | study 级版本、生成时间、run 数和摘要行。 |
+| `README.md` | 实验摘要，记录 run 数、通过/失败数量、通过率、最佳 run、最差 run、参数列、指标列和文件索引。 |
+| `index.json` | 面向平台浏览和可视化的机器可读索引。 |
+| `summary_metrics.csv` | 所有 run 的指标、参数列、系统选择、验收结果和输出目录。 |
+| `study_manifest.json` | v0.2 兼容 manifest。 |
+| `experiment_manifest.json` | v0.3 平台实验 manifest，记录实验计划、场景、扫描/Monte Carlo 设置和 run 摘要。 |
 
-后续增强：
+## 使用入口
 
-- `events.csv` 或 `events.parquet`：稀疏事件日志。
-- `telemetry.h5`：高维稠密遥测和回放数据。
-- `report.html`：交互式或更精致的人读报告。
+场景入口：
 
-## 接口草案
-
-轻量场景配置示例：
-
-```yaml
-schema_version: 1
-metadata:
-  name: cubesat_rw_pd_demo
-  description: 1U CubeSat 四反作用轮 PD 闭环演示
-
-time:
-  duration_s: 20.0
-  dt_s: 0.02
-  seed: 42
-
-system:
-  builder: cubesat_reaction_wheel
-  controller: pd
-  identify_inertia: false
-  environment: orbital
-
-controller:
-  pd_kp: 0.05
-  pd_kd: 0.02
-
-sensors:
-  attitude:
-    noise_std_rad: 0.0006
-  gyro:
-    noise_std_rad_s: 0.001
-    bias_std_rad_s: 0.002
-    bias_rw_scale: 0.02
-
-environment:
-  epoch_utc: "2026-01-01T00:00:00Z"
-  sun_vector_eci: [1.0, 0.2, 0.1]
-  orbit:
-    provider: keplerian
-    semi_major_axis_m: 6878137.0
-    eccentricity: 0.001
-    inclination_deg: 97.6
-    raan_deg: 15.0
-
-actuators:
-  reaction_wheels:
-    layout: pyramid_4wheel
-    max_torque_nm: 0.007
-    initial_speeds_rad_s: [0.0, 0.0, 0.0, 0.0]
-    allocation: bounded_pinv
-
-faults:
-  - target: reaction_wheel
-    action: disable
-    index: 0
-    when_s: 0.0
-
-acceptance:
-  max_final_error_deg: 5.0
-  max_rms_error_deg: 20.0
-  max_peak_torque_nm: 0.2
-
-initial_state:
-  use_default: true
-
-outputs:
-  root: results/cubesat_rw_pd_demo
-  save_metrics_csv: true
-  save_time_history_csv: true
-  save_markdown_report: true
+```bash
+satmodel-validate-scenario scenarios/quick_pd_zero.json
+satmodel-run-scenario scenarios/quick_pd_zero.json --output results/platform/quick_pd_zero
 ```
 
-Python 使用方式：
+实验计划入口：
+
+```bash
+satmodel-validate-experiment scenarios/quick_pd_experiment.json
+satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
+```
+
+Python 入口：
 
 ```python
-from satmodel.config import load_scenario
-from satmodel.studies import StudyRunner
+from satmodel import PlatformProject, ExperimentRunner, load_experiment_plan
 
-scenario = load_scenario("scenarios/cubesat_rw_pd_demo.yaml")
-summary = StudyRunner(scenario).run()
-print(summary.metrics_table())
+plan = load_experiment_plan("scenarios/quick_pd_experiment.json")
+summary = ExperimentRunner(plan, output_dir="results/quick_pd_experiment").run()
+print(summary.best_row())
+
+project = PlatformProject("workspace")
+project.run(plan)
 ```
 
-命令行使用方式：
-
-```bash
-satmodel-run-scenario scenarios/cubesat_rw_pd_demo.json --output results/cubesat_rw_pd_demo
-```
-
-配置验证方式：
-
-```bash
-satmodel-validate-scenario scenarios/cubesat_rw_pd_demo.json
-```
-
-CLI 也支持覆盖和参数扫描：
-
-```bash
-satmodel-run-scenario scenarios/cubesat_rw_pd_demo.json \
-  --output results/pd_sweep \
-  --set time.seed=9 \
-  --sweep controller.pd_kp=0.05,0.08,0.12
-```
-
-轻量 Monte Carlo 采用固定 seed 序列，适合先做噪声鲁棒性和批量回归：
-
-```bash
-satmodel-run-scenario scenarios/cubesat_rw_pd_demo.json \
-  --output results/pd_monte_carlo \
-  --monte-carlo 20 \
-  --monte-carlo-seed 100
-```
-
-批量实验完成后，优先查看输出根目录的 `README.md`，它会汇总通过/失败数量、通过率、最佳 run、最差 run 和关键指标表；后续可视化或自动筛选可以读取同目录的 `index.json`。
-
-平台入口已经支持单场景运行、Python/CLI 简单参数扫描、轻量 Monte Carlo、控制器参数、轻量轨道环境、反作用轮配置和 `when_s=0.0` 起始轮失效。旧入口仍继续可用：
+兼容入口仍继续可用：
 
 ```python
 from satmodel import ScenarioRunner, SimulationConfig, build_default_system
@@ -219,23 +177,20 @@ result = ScenarioRunner(system).run(SimulationConfig(duration=5.0, dt=0.02))
 
 ## 测试策略
 
-`v0.2` 代码实现阶段应增加以下测试：
-
 1. 场景配置解析测试：默认值、非法字段、非法时间设置和系统构造选择。
-2. 编译测试：`ScenarioSpec` 能生成可运行的 `SatelliteSystem` 和 `SimulationConfig`。
-3. 兼容测试：`ScenarioRunner.run(SimulationConfig)` 旧路径行为不变。
-4. 结果写入测试：`manifest.json`、`metrics.csv`、`time_history.csv` 和 `README.md` 存在且字段稳定。
-5. 实验运行测试：固定 seed 的单场景、参数扫描和 Monte Carlo 批量实验能生成可复现指标。
-6. 回归测试：现有示例脚本和 `python -m pytest -q` 继续通过。
+2. 实验计划测试：内联场景、相对路径场景、参数扫描、Monte Carlo、未知字段拒绝。
+3. 兼容测试：`StudyRunner`、`satmodel-run-scenario` 和 `ScenarioRunner.run(SimulationConfig)` 行为不变。
+4. 结果写入测试：run 级和 experiment 级产物存在且字段稳定。
+5. 回归测试：`python -m pytest -q` 继续通过。
 
 ## 实施顺序
 
 建议拆成小提交推进：
 
-1. `Add lightweight scenario spec`：新增配置对象和最小加载器。
-2. `Add scenario compiler`：把配置编译到现有系统构造器和 `SimulationConfig`。
-3. `Add result writer`：生成 manifest、metrics、time history 和 Markdown 报告。
-4. `Add study runner`：组织单场景和简单参数扫描。
-5. `Document platform workflow`：补充 README、示例和 API 文档。
+1. `Document mature platform roadmap`：统一路线和文档口径。
+2. `Modularize platform package`：把当前 `platform.core` 拆为 plan/runner/records/reporting/project。
+3. `Add runtime skeleton`：新增 RuntimeProcess/RuntimeTask/RuntimeModule 只读骨架和文档。
+4. `Add mission sequence skeleton`：新增 MissionSequence/ModeTimeline 的配置和验证。
+5. `Add high-fidelity model adapters`：按环境、传播、执行机构、传感器逐步扩展。
 
-每一步都应运行测试，并避免把平台化实现与高保真物理模型改造混在同一个提交里。
+每一步都应运行测试，并避免把平台架构、高保真物理模型和可视化产品化混在同一个提交里。

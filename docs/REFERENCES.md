@@ -18,6 +18,19 @@
 - [GMAT Spacecraft Attitude](https://documentation.help/GMAT/SpacecraftAttitude.html)  
   用作刚体姿态真值模型的边界参考，说明当前刚体模型并不等同柔性或多体高保真模型。
 
+### 对 satmodel 的具体落地映射
+
+| 参考项目 | 成熟范式 | satmodel 采用方式 |
+| --- | --- | --- |
+| Basilisk | process / task / module、消息化模块、可测试仿真组件 | v0.4 引入 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule`，用于多速率调度和模块执行顺序。 |
+| Basilisk spacecraft | 本体、状态效应器、动态效应器分离 | 当前保持 `SpacecraftDynamics`、反作用轮状态效应器和扰动效应器分离；v0.5 扩展柔性件、面元扰动和高保真执行机构。 |
+| Tudat | environment setup 与 propagation setup 分离 | v0.5 将环境配置、传播配置、dependent variables 和终止条件分层表达。 |
+| Tudat macromodels | 航天器宏模型、面元几何和环境交互 | v0.5 从盒体投影面积升级到面元气动和面元 SRP。 |
+| GMAT | 资源对象和 mission sequence 分离 | v0.4 引入 `MissionSequence` 和 `ModeTimeline`，把模式/参考切换放在任务层。 |
+| NASA 42 | 多体、柔性和硬件在环边界 | 长期高保真方向，不进入 v0.3/v0.4 的平台骨架阶段。 |
+
+这些参考只定义架构口径和验证方向，不意味着复制外部项目源码或引入其运行时依赖。
+
 ## 开源研究代码参考
 
 - [`brunopinto900/attitude_control_reaction_wheels`](https://github.com/brunopinto900/attitude_control_reaction_wheels)  

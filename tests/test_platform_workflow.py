@@ -3,7 +3,11 @@
 import csv
 import json
 
+import pytest
+
 from satmodel import (
+    ExperimentRunner,
+    PlatformProject,
     MonteCarlo,
     ScenarioRunner,
     ScenarioSpec,
@@ -11,9 +15,12 @@ from satmodel import (
     Sweep,
     compile_scenario,
     load_scenario,
+    experiment_plan_from_mapping,
     scenario_from_mapping,
 )
+from satmodel.cli import run_experiment_main
 from satmodel.cli import run_scenario_main
+from satmodel.cli import validate_experiment_main
 from satmodel.cli import validate_scenario_main
 
 
@@ -108,16 +115,19 @@ def test_json_scenario_loads_and_study_runner_writes_outputs(tmp_path):
     assert (output / "summary_metrics.csv").exists()
     assert (output / "study_manifest.json").exists()
     assert (output / "index.json").exists()
+    assert (output / "experiment_manifest.json").exists()
 
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["scenario"]["metadata"]["name"] == "platform_smoke"
     assert manifest["samples"] == 8
     index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+    experiment_manifest = json.loads((output / "experiment_manifest.json").read_text(encoding="utf-8"))
     assert index["run_count"] == 1
     assert index["accepted_count"] == 1
     assert index["failed_count"] == 0
     assert index["best_run_id"] == "run_000"
     assert "final_error_deg" in index["metric_columns"]
+    assert experiment_manifest["experiment"]["scenario"]["metadata"]["name"] == "platform_smoke"
 
     with (output / "metrics.csv").open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -266,6 +276,7 @@ def test_run_scenario_cli_supports_overrides_and_sweeps(tmp_path, capsys):
     assert (output / "summary_metrics.csv").exists()
     assert (output / "study_manifest.json").exists()
     assert (output / "index.json").exists()
+    assert (output / "experiment_manifest.json").exists()
     first_manifest = json.loads((output / "run_000" / "manifest.json").read_text(encoding="utf-8"))
     second_manifest = json.loads((output / "run_001" / "manifest.json").read_text(encoding="utf-8"))
     index = json.loads((output / "index.json").read_text(encoding="utf-8"))
@@ -277,6 +288,80 @@ def test_run_scenario_cli_supports_overrides_and_sweeps(tmp_path, capsys):
     assert index["failed_count"] == 0
     assert index["best_run_id"] in {"run_000", "run_001"}
     assert index["parameter_columns"] == ["param_controller.pd_kp"]
+
+
+def test_experiment_plan_rejects_unknown_fields(tmp_path):
+    mapping = {
+        "schema_version": 1,
+        "scenario": _scenario_mapping(tmp_path / "unused"),
+        "unexpected": True,
+    }
+
+    with pytest.raises(ValueError, match="unknown experiment"):
+        experiment_plan_from_mapping(mapping)
+
+
+def test_experiment_runner_writes_platform_manifest_for_sweep(tmp_path):
+    output = tmp_path / "experiment"
+    plan = {
+        "schema_version": 1,
+        "metadata": {"name": "platform_experiment"},
+        "scenario": _scenario_mapping(tmp_path / "ignored"),
+        "sweeps": [{"path": "controller.pd_kp", "values": [0.2, 0.3]}],
+        "outputs": {"root": str(output)},
+    }
+
+    summary = ExperimentRunner(plan).run()
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+    manifest = json.loads((output / "experiment_manifest.json").read_text(encoding="utf-8"))
+
+    assert len(summary.metrics_table()) == 2
+    assert (output / "run_000" / "manifest.json").exists()
+    assert (output / "run_001" / "manifest.json").exists()
+    assert index["run_count"] == 2
+    assert index["parameter_columns"] == ["param_controller.pd_kp"]
+    assert manifest["experiment"]["metadata"]["name"] == "platform_experiment"
+    assert manifest["experiment"]["sweeps"][0]["path"] == "controller.pd_kp"
+
+
+def test_experiment_plan_loads_relative_scenario_path(tmp_path):
+    scenario_path = tmp_path / "scenario.json"
+    plan_path = tmp_path / "plan.json"
+    output = tmp_path / "relative-output"
+    scenario_path.write_text(json.dumps(_scenario_mapping(tmp_path / "ignored"), ensure_ascii=False), encoding="utf-8")
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {"name": "relative_plan"},
+                "scenario": "scenario.json",
+                "monte_carlo": {"samples": 2, "seed": 30},
+                "outputs": {"root": str(output)},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    summary = ExperimentRunner(plan_path).run()
+    rows = summary.metrics_table()
+
+    assert [row["seed"] for row in rows] == [30, 31]
+    assert (output / "experiment_manifest.json").exists()
+
+
+def test_platform_project_runs_plan_in_workspace(tmp_path):
+    project = PlatformProject(tmp_path / "workspace")
+    plan = {
+        "schema_version": 1,
+        "metadata": {"name": "workspace_plan"},
+        "scenario": _scenario_mapping(tmp_path / "ignored"),
+    }
+
+    summary = project.run(plan)
+
+    assert summary.output_dir == tmp_path / "workspace" / "results" / "workspace_plan"
+    assert (summary.output_dir / "experiment_manifest.json").exists()
 
 
 def test_study_runner_monte_carlo_creates_seeded_runs(tmp_path):
@@ -358,6 +443,57 @@ def test_run_scenario_cli_reports_failed_acceptance_summary(tmp_path, capsys):
     assert index["failed_count"] == 2
 
 
+def test_run_experiment_cli_writes_outputs(tmp_path, capsys):
+    plan_path = tmp_path / "plan.json"
+    output = tmp_path / "cli-experiment"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {"name": "cli_experiment"},
+                "scenario": _scenario_mapping(tmp_path / "ignored"),
+                "sweeps": [{"path": "controller.pd_kp", "values": [0.2, 0.3]}],
+                "outputs": {"root": str(tmp_path / "ignored-output")},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    run_experiment_main([str(plan_path), "--output", str(output)])
+    captured = capsys.readouterr()
+
+    assert "Output:" in captured.out
+    assert "Runs: 2" in captured.out
+    assert (output / "experiment_manifest.json").exists()
+    assert (output / "run_000" / "manifest.json").exists()
+
+
+def test_validate_experiment_cli_does_not_write_outputs(tmp_path, capsys):
+    plan_path = tmp_path / "plan.json"
+    output = tmp_path / "validate-experiment-output"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {"name": "validate_experiment"},
+                "scenario": _scenario_mapping(tmp_path / "ignored"),
+                "monte_carlo": {"samples": 2, "seed": 40},
+                "outputs": {"root": str(output)},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    validate_experiment_main([str(plan_path)])
+    captured = capsys.readouterr()
+
+    assert "Valid experiment:" in captured.out
+    assert "Runs: 2" in captured.out
+    assert not output.exists()
+
+
 def test_validate_scenario_cli_does_not_write_outputs(tmp_path, capsys):
     scenario_path = tmp_path / "scenario.json"
     output = tmp_path / "validate-output"
@@ -392,10 +528,12 @@ def test_validate_scenario_cli_supports_monte_carlo_without_outputs(tmp_path, ca
 def test_repo_scenario_templates_validate(tmp_path, capsys):
     validate_scenario_main(["scenarios/quick_pd_zero.json"])
     validate_scenario_main(["scenarios/cubesat_rw_fault.json", "--set", f"outputs.root={json.dumps(str(tmp_path / 'unused'))}"])
+    validate_experiment_main(["scenarios/quick_pd_experiment.json"])
     captured = capsys.readouterr()
 
     assert "quick_pd_zero" in captured.out
     assert "cubesat_rw_fault" in captured.out
+    assert "quick_pd_experiment" in captured.out
 
 
 def test_study_runner_sweep_creates_run_directories(tmp_path):

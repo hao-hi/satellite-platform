@@ -84,6 +84,19 @@ from satmodel.optimization import (
     SimulatedAnnealingOptimizer,
 )
 from satmodel.physics import CubeSatPhysicalConfig, MassProperties, cubesat_demo_mass_properties, uniform_box_inertia
+from satmodel.platform import (
+    ExperimentMonteCarloSpec,
+    ExperimentOutputSpec,
+    ExperimentPlan,
+    ExperimentRecord,
+    ExperimentRunner,
+    ExperimentSummary,
+    ExperimentSweepSpec,
+    PlatformProject,
+    ReportBuilder,
+    experiment_plan_from_mapping,
+    load_experiment_plan,
+)
 from satmodel.sensors import AttitudeSensor, GyroSensor, SensorSuite
 from satmodel.system import SatelliteSystem, ScenarioRunner, build_cubesat_reaction_wheel_system, build_default_system
 from satmodel.types import (
@@ -126,6 +139,13 @@ __all__ = [
     "EphemerisOrbitProvider",
     "EstimatedState",
     "EstimatorStack",
+    "ExperimentMonteCarloSpec",
+    "ExperimentOutputSpec",
+    "ExperimentPlan",
+    "ExperimentRecord",
+    "ExperimentRunner",
+    "ExperimentSummary",
+    "ExperimentSweepSpec",
     "ExponentialAtmosphere",
     "GeodeticPoint",
     "GyroSensor",
@@ -148,6 +168,7 @@ __all__ = [
     "OrbitState",
     "OrbitalEnvironment",
     "PDController",
+    "PlatformProject",
     "PSOOptimizer",
     "RK4Integrator",
     "RandomSearchOptimizer",
@@ -158,6 +179,7 @@ __all__ = [
     "ReactionWheelConfig",
     "ReactionWheelStateEffector",
     "ResultWriter",
+    "ReportBuilder",
     "RigidBodyState",
     "ResidualMagneticTorque",
     "ResidualMagneticTorqueConfig",
@@ -198,10 +220,12 @@ __all__ = [
     "build_demo_leo_environment",
     "compile_scenario",
     "default_leo_disturbance_effectors",
+    "experiment_plan_from_mapping",
     "build_inertia_regression_matrix",
     "cubesat_demo_mass_properties",
     "geodetic_from_eci",
     "load_scenario",
+    "load_experiment_plan",
     "scenario_from_mapping",
     "scenario_to_mapping",
     "uniform_box_inertia",

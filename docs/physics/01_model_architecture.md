@@ -21,6 +21,8 @@
 
 本轮选择轻量 CubeSat 路线，是因为它能先暴露姿控被控对象中最关键的执行机构状态，而不把环境、几何和多体传播一次性推到高复杂度。Basilisk 和 Tudat 的分层仍保留在后续路线中。
 
+按照当前平台路线，面元几何、柔性/多体、面元 SRP、面元拖曳和更完整执行机构模型统一归入 `v0.5` 高保真建模阶段；`v0.3-v0.4` 优先收敛平台架构、运行时和任务序列。
+
 ## 当前数据流
 
 ```mermaid
@@ -41,9 +43,9 @@ flowchart LR
 - `MassProperties` 记录质量、质心和惯量；首版传播只消费惯量。
 - `CubeSatPhysicalConfig` 记录盒体几何、质量属性和轮组配置；环境配置由场景层拥有。
 - CubeSat 被控对象使用 `ReactionWheelStateEffector` 做伪逆分配并传播轮速和轮动量。
-- 轮组耦合传播已纳入 `I omega + h_w` 角动量口径；摩擦、轮系抖振和动量卸载仍留给后续。
+- 轮组耦合传播已纳入 `I omega + h_w` 角动量口径；摩擦、轮系抖振和动量卸载统一留给 `v0.5` 高保真执行机构阶段。
 - `OrbitalEnvironment.sample()` 只给出外部场上下文，气动、SRP、残磁和重力梯度由独立扰动效应器给出力矩。
 
 ## 资料口径
 
-小/微卫星 ADCS 的系统背景优先参考 He et al. 2021、Hu et al. 2022、Hasan et al. 2022、Ovchinnikov and Roldugin 2019、NASA Small Spacecraft Technology State of the Art 和 ECSS AOCS 要求资料。柔性、多体、约束和故障控制论文被保留为后续研究锚点，不直接改变当前刚体首版实现。
+小/微卫星 ADCS 的系统背景优先参考 He et al. 2021、Hu et al. 2022、Hasan et al. 2022、Ovchinnikov and Roldugin 2019、NASA Small Spacecraft Technology State of the Art 和 ECSS AOCS 要求资料。柔性、多体和约束控制论文被保留为 `v0.5+` 研究锚点，不直接改变当前刚体首版实现。

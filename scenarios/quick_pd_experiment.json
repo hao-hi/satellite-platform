@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_pd_experiment",
+    "description": "Platform experiment plan for the quick PD scenario.",
+    "tags": ["platform", "experiment", "pd"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kp",
+      "values": [1.2, 1.5]
+    }
+  ],
+  "monte_carlo": {
+    "samples": 2,
+    "seed": 10
+  },
+  "outputs": {
+    "root": "results/platform/quick_pd_experiment"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

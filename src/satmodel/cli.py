@@ -8,6 +8,7 @@ from pathlib import Path
 
 from satmodel.config import load_scenario, scenario_from_mapping, scenario_to_mapping
 from satmodel.config.compiler import compile_scenario
+from satmodel.platform import ExperimentRunner
 from satmodel.studies import MonteCarlo, StudyRunner, Sweep, set_mapping_path
 
 
@@ -117,21 +118,7 @@ def run_scenario_main(argv=None) -> None:
 
     spec = _scenario_with_overrides(args.scenario, args.overrides)
     summary = StudyRunner(spec, output_dir=args.output).run(*_study_factors(spec, args))
-    rows = summary.metrics_table()
-    print(f"Output: {Path(summary.output_dir)}")
-    if rows:
-        row = rows[0]
-        print(f"Runs: {len(rows)}")
-        print(f"Final error deg: {float(row['final_error_deg']):.6g}")
-        print(f"RMS error deg: {float(row['rms_error_deg']):.6g}")
-        if len(rows) > 1:
-            acceptance = summary.acceptance_summary()
-            best = summary.best_row()
-            print(f"Accepted: {acceptance['accepted_count']}")
-            print(f"Failed: {acceptance['failed_count']}")
-            if best is not None:
-                print(f"Best run: {best['run_id']}")
-                print(f"Best final error deg: {float(best['final_error_deg']):.6g}")
+    _print_run_summary(summary)
 
 
 def validate_scenario_main(argv=None) -> None:
@@ -155,6 +142,64 @@ def validate_scenario_main(argv=None) -> None:
     print(f"System: {spec.system.builder}")
     print(f"Controller: {spec.system.controller}")
     print(f"Environment: {spec.system.environment}")
+
+
+def run_experiment_main(argv=None) -> None:
+    """Run a platform ExperimentPlan file and write the configured result directory."""
+
+    parser = argparse.ArgumentParser(
+        prog="satmodel-run-experiment",
+        description="Run a satmodel ExperimentPlan file and write platform outputs.",
+    )
+    parser.add_argument("plan", help="Path to a .json, .yaml, or .yml experiment plan file")
+    parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Override the experiment outputs.root directory",
+    )
+    args = parser.parse_args(argv)
+
+    summary = ExperimentRunner(args.plan, output_dir=args.output).run()
+    _print_run_summary(summary)
+
+
+def validate_experiment_main(argv=None) -> None:
+    """Validate and compile an experiment plan without running simulations."""
+
+    parser = argparse.ArgumentParser(
+        prog="satmodel-validate-experiment",
+        description="Validate a satmodel ExperimentPlan file without running it.",
+    )
+    parser.add_argument("plan", help="Path to a .json, .yaml, or .yml experiment plan file")
+    args = parser.parse_args(argv)
+
+    runner = ExperimentRunner(args.plan)
+    cases = runner.validate()
+    plan = runner.plan
+    print(f"Valid experiment: {plan.name}")
+    print(f"Runs: {len(cases)}")
+    print(f"Scenario: {plan.scenario.metadata.name}")
+    print(f"Sweeps: {len(plan.sweeps)}")
+    print(f"Monte Carlo samples: {0 if plan.monte_carlo is None else plan.monte_carlo.samples}")
+
+
+def _print_run_summary(summary) -> None:
+    rows = summary.metrics_table()
+    print(f"Output: {Path(summary.output_dir)}")
+    if rows:
+        row = rows[0]
+        print(f"Runs: {len(rows)}")
+        print(f"Final error deg: {float(row['final_error_deg']):.6g}")
+        print(f"RMS error deg: {float(row['rms_error_deg']):.6g}")
+        if len(rows) > 1:
+            acceptance = summary.acceptance_summary()
+            best = summary.best_row()
+            print(f"Accepted: {acceptance['accepted_count']}")
+            print(f"Failed: {acceptance['failed_count']}")
+            if best is not None:
+                print(f"Best run: {best['run_id']}")
+                print(f"Best final error deg: {float(best['final_error_deg']):.6g}")
 
 
 def main(argv=None) -> None:

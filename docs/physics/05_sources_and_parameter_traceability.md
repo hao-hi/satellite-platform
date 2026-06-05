@@ -5,7 +5,7 @@
 本项目把物理输入分成三类：
 
 1. **文献/官方资料给定**：可直接追溯到论文、标准、官方文档或教材。
-2. **参考项目给定**：用于首版演示的社区项目参数，需在后续任务中替换为目标硬件数据。
+2. **参考项目给定**：用于首版演示的社区项目参数，需在 `v0.5` 高保真建模或具体任务适配时替换为目标硬件数据。
 3. **`satmodel` 工程假设**：为了形成可运行基线而设的默认值，不能当作飞行硬件标称值。
 
 ## 公式追溯表
@@ -26,10 +26,10 @@
 | 残余磁矩扰动力矩 | `tau_mag^B = m_res^B x B_B` | 小卫星磁扰动常用 `m x B` 关系；Ovchinnikov and Roldugin 2019 |
 | 气动相对速度 | `v_rel,N = v_N - omega_E x r_N` | 低轨大气随地球自转的一阶工程近似 |
 | 盒体投影面积 | `A_box(n_B)=ly lz abs(nx) + lx lz abs(ny) + lx ly abs(nz)` | 盒体宏模型/一阶投影面积模型；Tudat spacecraft macromodels 升级路线 |
-| 气动阻力 | `F_drag^B = -0.5 rho C_D A_box norm(v_rel,B) v_rel,B` | 小卫星一阶气动扰动预算；Basilisk/Tudat 面元拖曳为后续升级锚点 |
+| 气动阻力 | `F_drag^B = -0.5 rho C_D A_box norm(v_rel,B) v_rel,B` | 小卫星一阶气动扰动预算；Basilisk/Tudat 面元拖曳为 `v0.5` 升级锚点 |
 | 气动扰动力矩 | `tau_aero^B = r_cp,aero^B x F_drag^B` | 力矩定义 `r x F`；一阶压心偏置工程模型 |
-| 圆柱地影判据 | `r^T s_hat < 0`, `norm(r - (r^T s_hat)s_hat) <= R_E` | 一阶圆柱地影模型；后续可升级到半影/星历太阳模型 |
-| 太阳光压力 | `F_srp^B = -P_sun C_R A_box(s_B) s_hat_B` | 小卫星一阶 SRP 扰动预算；Basilisk/Tudat 面元 SRP 为后续升级锚点 |
+| 圆柱地影判据 | `r^T s_hat < 0`, `norm(r - (r^T s_hat)s_hat) <= R_E` | 一阶圆柱地影模型；`v0.5` 可升级到半影/星历太阳模型 |
+| 太阳光压力 | `F_srp^B = -P_sun C_R A_box(s_B) s_hat_B` | 小卫星一阶 SRP 扰动预算；Basilisk/Tudat 面元 SRP 为 `v0.5` 升级锚点 |
 | 太阳光压扰动力矩 | `tau_srp^B = r_cp,srp^B x F_srp^B` | 力矩定义 `r x F`；一阶压心偏置工程模型 |
 | 扰动力矩汇总 | `tau_dist^B = tau_gg + tau_mag + tau_aero + tau_srp + tau_extra + tau_noise` | `DisturbanceEffectorSet` 具名力矩预算；仿真 runner 汇总口径 |
 
@@ -72,7 +72,7 @@
 - [NASA Small Spacecraft Technology State of the Art](https://www.nasa.gov/smallsat-institute/sst-soa/).
 - [ECSS-E-ST-60-30C AOCS requirements](https://ecss.nl/standard/ecss-e-st-60-30c-satellite-attitude-and-orbit-control-system-aocs-requirements/).
 
-### 刚体、高保真和执行机构升级锚点
+### v0.5 刚体、高保真和执行机构升级锚点
 
 - Wertz, J.R., *Spacecraft Attitude Determination and Control*.
 - Schaub, H. and Junkins, J.L., *Analytical Mechanics of Space Systems*.
@@ -98,4 +98,4 @@
 
 - 开源项目用于结构、参数基线和算法方向参考。
 - 当前实现没有把外部项目的源码整段迁入。
-- 当后续从参考项目参数切到目标硬件参数时，应把该表更新为硬件数据手册、CAD 质量属性或试验辨识结果。
+- 当 `v0.5` 或具体任务适配从参考项目参数切到目标硬件参数时，应把该表更新为硬件数据手册、CAD 质量属性或试验辨识结果。

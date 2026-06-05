@@ -65,6 +65,7 @@ satellite-attitude-control-model/
 | `optimization.py` | 网格搜索、随机搜索、Nelder-Mead、模拟退火和 PSO 参数优化工具。 |
 | `plotting.py` | 仿真结果绘图辅助。 |
 | `system.py` | 高层系统装配、默认系统构造器和单速率固定步长仿真循环，是理解项目运行方式的关键文件。 |
+| `platform/` | v0.3 平台架构层，包含实验计划、实验运行器、项目工作区和报告构建器。 |
 | `studies/` | 可复现实验入口，目前包含反作用轮阵列研究实验。 |
 
 示例脚本 `examples/`：
@@ -87,8 +88,8 @@ satellite-attitude-control-model/
 | `NEWCOMER_GUIDE.md` | 面向第一次打开项目的人，解释项目是什么、各文件做什么、怎么运行。 |
 | `PROJECT_GUIDE.md` | 项目总说明，集中介绍代码结构、仿真流程、物理公式和默认参数。 |
 | `ARCHITECTURE.md` | 架构说明，解释组件层次和单步数据流。 |
-| `ROADMAP.md` | 后续物理模型、仿真方法和工程化升级路线。 |
-| `PLATFORM_PLAN.md` | v0.2 平台化实施计划，说明轻量场景配置、实验管理和结果归档路线。 |
+| `ROADMAP.md` | 按成熟平台范式整理的 v0.2-v0.6 演进路线。 |
+| `PLATFORM_PLAN.md` | 平台化路线与实施计划，说明 Project、Experiment、Runtime、Report 等分层。 |
 | `REFERENCES.md` | 参考框架、论文、官方模型和开源项目索引。 |
 | `physics/` | 分专题物理模型说明，包括刚体、环境扰动、反作用轮和参数追溯。 |
 
@@ -237,6 +238,17 @@ satmodel-run-scenario scenarios/quick_pd_zero.json \
 ```
 
 这会生成 `time.seed=100..119` 的 20 个 run。也可以和 `--sweep` 组合，形成“每组参数下跑多组随机 seed”的小型批量实验。跑完后先打开输出根目录的 `README.md` 看通过/失败数量、最佳 run 和关键指标；程序化分析则读取 `index.json` 或 `summary_metrics.csv`。
+
+`v0.3` 新增了实验计划入口，适合把一个完整实验保存成可复用 JSON：
+
+```bash
+satmodel-validate-experiment scenarios/quick_pd_experiment.json
+satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
+```
+
+实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置和所有 run 摘要。旧的 `satmodel-run-scenario` 和 Python `StudyRunner` 仍可用，它们内部会委托到新的平台层。
+
+后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
 
 场景文件也可以配置 orbital 环境和轨道参数：
 
@@ -474,7 +486,7 @@ satmodel-rw-study --output results/smoke --duration 2 --dt 0.05 --no-plots
 - [项目总说明与物理建模](docs/PROJECT_GUIDE.md)
 - [架构说明](docs/ARCHITECTURE.md)
 - [路线图](docs/ROADMAP.md)
-- [v0.2 平台化实施计划](docs/PLATFORM_PLAN.md)
+- [平台化路线与实施计划](docs/PLATFORM_PLAN.md)
 - [参考资料](docs/REFERENCES.md)
 - [物理模型架构](docs/physics/01_model_architecture.md)
 - [刚体姿态模型](docs/physics/02_rigid_body_attitude_model.md)
