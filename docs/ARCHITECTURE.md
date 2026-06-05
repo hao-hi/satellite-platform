@@ -40,6 +40,42 @@
 8. 动力学层使用实际控制力矩、扰动力矩和可选轮组内部状态传播下一步刚体状态。
 9. `SimulationResult` 记录真值、估计、测量、力矩预算、控制器诊断和执行机构遥测。
 
+## 平台化目标架构
+
+`v0.2` 之后的平台化方向是在现有模型库外侧增加编排层，而不是重写底层物理组件。现有 `ScenarioRunner`、`SimulationConfig` 和 `SimulationResult` 应继续作为稳定单场景入口；新增平台入口负责把配置、实验和结果组织成可复现工作流。
+
+建议的第一阶段架构流为：
+
+```text
+ScenarioSpec
+    -> ScenarioCompiler
+    -> ScenarioRunner / StudyRunner
+    -> ResultWriter
+    -> Markdown/CSV/JSON Report
+```
+
+各层职责：
+
+- `ScenarioSpec`：描述场景意图，例如时间设置、初始状态、系统构造、控制器和输出设置。
+- `ScenarioCompiler`：把配置对象转换为当前库已经支持的 `SatelliteSystem` 和 `SimulationConfig`。
+- `ScenarioRunner`：继续执行单速率固定步长仿真，保持旧 API 语义不变。
+- `StudyRunner`：组织单场景、参数扫描和 Monte Carlo 等批量实验。
+- `ResultWriter`：把内存中的 `SimulationResult` 写成可复现实验产物。
+
+`v0.2` 默认采用轻量实现：优先使用标准库数据结构、JSON、CSV 和 Markdown。Pydantic、Parquet、HDF5、数据库和 Web 服务可作为后续增强，不作为第一阶段的硬依赖。
+
+更长远的 `v0.3` 多速率架构可以在这个流上替换运行时：
+
+```text
+ScenarioSpec
+    -> ScenarioCompiler
+    -> MultiRateScheduler
+    -> Recorder / ResultWriter
+    -> Report / Replay
+```
+
+多速率调度器应以当前单步数据流作为语义基线。等频配置下，动力学、传感器、估计器、控制器、执行器和记录顺序应保持可解释的一致性。
+
 ## 两条默认系统路径
 
 项目保留两条轻量系统构造路径：

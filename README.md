@@ -38,6 +38,7 @@ satellite-attitude-control-model/
   pyproject.toml                    Python 包元数据、依赖和命令行入口
   docs/                             架构、物理模型、参考资料和新手导览
   examples/                         可直接运行的演示脚本
+  scenarios/                        平台化 JSON 场景模板，可由 CLI 直接验证和运行
   tests/                            单元测试、物理验证和示例 smoke test
   src/satmodel/                     核心 Python 包
 ```
@@ -87,6 +88,7 @@ satellite-attitude-control-model/
 | `PROJECT_GUIDE.md` | 项目总说明，集中介绍代码结构、仿真流程、物理公式和默认参数。 |
 | `ARCHITECTURE.md` | 架构说明，解释组件层次和单步数据流。 |
 | `ROADMAP.md` | 后续物理模型、仿真方法和工程化升级路线。 |
+| `PLATFORM_PLAN.md` | v0.2 平台化实施计划，说明轻量场景配置、实验管理和结果归档路线。 |
 | `REFERENCES.md` | 参考框架、论文、官方模型和开源项目索引。 |
 | `physics/` | 分专题物理模型说明，包括刚体、环境扰动、反作用轮和参数追溯。 |
 
@@ -173,6 +175,116 @@ print(result.metrics(config.reference))
 - RMS 姿态误差。
 - 控制力矩积分。
 - 峰值执行力矩。
+
+## 轻量平台入口
+
+`v0.2` 平台化入口保留原有 `ScenarioRunner` 用法，同时增加配置驱动的场景和实验运行器。下面的例子会生成 run 级 `manifest.json`、`metrics.csv`、`time_history.csv`、`events.csv` 和 `README.md`，并在实验根目录生成 `summary_metrics.csv` 与 `study_manifest.json`：
+
+```python
+from satmodel import ScenarioSpec, StudyRunner
+
+scenario = ScenarioSpec(
+    metadata={"name": "quick_platform_demo"},
+    time={"duration_s": 2.0, "dt_s": 0.02, "seed": 3},
+    system={"builder": "default", "controller": "pd", "environment": "zero"},
+    controller={"pd_kp": 1.5, "pd_kd": 0.35},
+    outputs={"root": "results/quick_platform_demo"},
+)
+
+summary = StudyRunner(scenario).run()
+print(summary.metrics_table()[0]["final_error_deg"])
+```
+
+如果要从文件加载场景，可以使用 `satmodel.load_scenario("scenario.json")`。JSON 是默认无额外依赖路径；YAML 文件在安装 `PyYAML` 后可选支持。
+
+仓库内置了两个可直接运行的 JSON 场景模板：
+
+| 场景 | 作用 |
+| --- | --- |
+| `scenarios/quick_pd_zero.json` | 短时长 PD 闭环 smoke 场景，使用 zero environment。 |
+| `scenarios/cubesat_rw_fault.json` | 1U CubeSat 四轮构型，含 t=0 反作用轮失效。 |
+
+安装为包后可以先验证场景文件，不运行仿真也不写结果：
+
+```bash
+satmodel-validate-scenario scenarios/quick_pd_zero.json
+```
+
+也可以直接用命令行运行场景文件：
+
+```bash
+satmodel-run-scenario scenarios/quick_pd_zero.json --output results/my_run
+```
+
+命令行也支持临时覆盖字段和笛卡尔参数扫描：
+
+```bash
+satmodel-run-scenario scenarios/quick_pd_zero.json \
+  --output results/pd_sweep \
+  --set time.seed=9 \
+  --sweep controller.pd_kp=0.05,0.08,0.12
+```
+
+参数扫描会在输出根目录生成 `summary_metrics.csv` 和 `study_manifest.json`，每个 run 则放在 `run_000/`、`run_001/` 等子目录中。
+
+如果要做随机噪声鲁棒性检查，可以用 Monte Carlo seed 序列批量运行：
+
+```bash
+satmodel-run-scenario scenarios/quick_pd_zero.json \
+  --output results/pd_monte_carlo \
+  --monte-carlo 20 \
+  --monte-carlo-seed 100
+```
+
+这会生成 `time.seed=100..119` 的 20 个 run。也可以和 `--sweep` 组合，形成“每组参数下跑多组随机 seed”的小型批量实验。
+
+场景文件也可以配置 orbital 环境和轨道参数：
+
+```json
+{
+  "schema_version": 1,
+  "metadata": {"name": "keplerian_platform_demo"},
+  "time": {"duration_s": 20.0, "dt_s": 0.02, "seed": 42},
+  "system": {"builder": "default", "controller": "pd", "environment": "orbital"},
+  "controller": {"pd_kp": 1.5, "pd_kd": 0.35},
+  "sensors": {
+    "attitude": {"noise_std_rad": 0.0006},
+    "gyro": {
+      "noise_std_rad_s": 0.001,
+      "bias_std_rad_s": 0.002,
+      "bias_rw_scale": 0.02
+    }
+  },
+  "environment": {
+    "epoch_utc": "2026-01-01T00:00:00Z",
+    "sun_vector_eci": [1.0, 0.2, 0.1],
+    "orbit": {
+      "provider": "keplerian",
+      "semi_major_axis_m": 6878137.0,
+      "eccentricity": 0.001,
+      "inclination_deg": 97.6,
+      "raan_deg": 15.0
+    }
+  },
+  "actuators": {
+    "reaction_wheels": {
+      "layout": "pyramid_4wheel",
+      "max_torque_nm": 0.007,
+      "initial_speeds_rad_s": [0.0, 0.0, 0.0, 0.0],
+      "allocation": "bounded_pinv"
+    }
+  },
+  "faults": [
+    {"target": "reaction_wheel", "action": "disable", "index": 0, "when_s": 0.0}
+  ],
+  "acceptance": {
+    "max_final_error_deg": 5.0,
+    "max_rms_error_deg": 20.0,
+    "max_peak_torque_nm": 0.2
+  },
+  "outputs": {"root": "results/keplerian_platform_demo"}
+}
+```
 
 ## 运行示例脚本
 
@@ -362,6 +474,7 @@ satmodel-rw-study --output results/smoke --duration 2 --dt 0.05 --no-plots
 - [项目总说明与物理建模](docs/PROJECT_GUIDE.md)
 - [架构说明](docs/ARCHITECTURE.md)
 - [路线图](docs/ROADMAP.md)
+- [v0.2 平台化实施计划](docs/PLATFORM_PLAN.md)
 - [参考资料](docs/REFERENCES.md)
 - [物理模型架构](docs/physics/01_model_architecture.md)
 - [刚体姿态模型](docs/physics/02_rigid_body_attitude_model.md)

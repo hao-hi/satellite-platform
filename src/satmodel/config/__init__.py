@@ -1,0 +1,50 @@
+"""Lightweight scenario configuration entry points."""
+
+from satmodel.config.compiler import CompiledScenario, compile_scenario
+from satmodel.config.loader import load_scenario
+from satmodel.config.schema import (
+    ScenarioActuatorSpec,
+    ScenarioAcceptanceSpec,
+    ScenarioAttitudeSensorSpec,
+    ScenarioControllerSpec,
+    ScenarioEnvironmentSpec,
+    ScenarioFaultSpec,
+    ScenarioGyroSensorSpec,
+    ScenarioInitialStateSpec,
+    ScenarioMetadata,
+    ScenarioOrbitSpec,
+    ScenarioOutputSpec,
+    ScenarioReferenceSpec,
+    ScenarioReactionWheelSpec,
+    ScenarioSensorSpec,
+    ScenarioSpec,
+    ScenarioSystemSpec,
+    ScenarioTimeSpec,
+    scenario_from_mapping,
+    scenario_to_mapping,
+)
+
+__all__ = [
+    "CompiledScenario",
+    "ScenarioActuatorSpec",
+    "ScenarioAcceptanceSpec",
+    "ScenarioAttitudeSensorSpec",
+    "ScenarioControllerSpec",
+    "ScenarioEnvironmentSpec",
+    "ScenarioFaultSpec",
+    "ScenarioGyroSensorSpec",
+    "ScenarioInitialStateSpec",
+    "ScenarioMetadata",
+    "ScenarioOrbitSpec",
+    "ScenarioOutputSpec",
+    "ScenarioReferenceSpec",
+    "ScenarioReactionWheelSpec",
+    "ScenarioSensorSpec",
+    "ScenarioSpec",
+    "ScenarioSystemSpec",
+    "ScenarioTimeSpec",
+    "compile_scenario",
+    "load_scenario",
+    "scenario_from_mapping",
+    "scenario_to_mapping",
+]

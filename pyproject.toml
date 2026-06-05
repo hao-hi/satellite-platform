@@ -39,6 +39,8 @@ tle = ["sgp4>=2.23"]
 
 [project.scripts]
 satmodel-rw-study = "satmodel.studies.reaction_wheel_study:main"
+satmodel-run-scenario = "satmodel.cli:run_scenario_main"
+satmodel-validate-scenario = "satmodel.cli:validate_scenario_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
