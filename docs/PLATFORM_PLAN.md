@@ -120,7 +120,7 @@ satmodel/platform/
 
 1. `dashboard.html`：实验根目录的中文静态结果浏览界面，支持 run 筛选、验收状态筛选、指标柱状图、run 表、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。
 2. `satmodel-build-dashboard OUTPUT_DIR`：为已有实验目录补建带仿真结果图的静态界面。
-3. `satmodel-platform-ui`：中文本地浏览器控制台，支持发现 `scenarios/` 下的场景和实验计划、查看和校验场景、从场景生成新实验计划、校验计划、运行实验并打开结果 dashboard。
+3. `satmodel-platform-ui`：中文本地浏览器控制台，支持发现 `scenarios/` 下的场景和实验计划、查看和校验场景、从场景生成新实验计划、校验计划、运行实验，并在控制台内嵌浏览结果摘要和 dashboard 预览。
 
 后续计划：
 

@@ -25,6 +25,7 @@ from satmodel.cli import validate_scenario_main
 from satmodel.cli import build_dashboard_main
 from satmodel.platform.webapp import (
     create_workspace_experiment_plan,
+    describe_workspace_dashboard,
     describe_workspace_scenario,
     discover_workspace,
     run_workspace_experiment,
@@ -654,6 +655,7 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     scenario_validation = validate_workspace_scenario(workspace, "scenarios/scenario.json")
     validation = validate_workspace_experiment(workspace, "scenarios/plan.json")
     result = run_workspace_experiment(workspace, "scenarios/plan.json", "results/webapp_plan")
+    dashboard_details = describe_workspace_dashboard(workspace, "results/webapp_plan/dashboard.html")
     rediscovered = discover_workspace(workspace)
 
     assert discovered["experiments"][0]["name"] == "webapp_plan"
@@ -665,8 +667,16 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     assert validation["valid"] is True
     assert validation["runs"] == 1
     assert result["runs"] == 1
+    assert result["summary"]["experiment_name"] == "webapp_plan"
+    assert result["summary"]["run_count"] == 1
     assert result["dashboard_url"] == "/file/results/webapp_plan/dashboard.html"
+    assert dashboard_details["scenario_name"] == "platform_smoke"
+    assert dashboard_details["best_run_id"] == "run_000"
+    assert dashboard_details["run_count"] == 1
+    assert dashboard_details["files"][-1]["name"] == "dashboard.html"
     assert (workspace / "results" / "webapp_plan" / "dashboard.html").exists()
+    assert rediscovered["dashboards"][0]["run_count"] == 1
+    assert rediscovered["dashboards"][0]["acceptance_rate"] == 1.0
     assert rediscovered["dashboards"][0]["url"] == "/file/results/webapp_plan/dashboard.html"
 
 

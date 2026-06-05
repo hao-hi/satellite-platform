@@ -58,13 +58,7 @@ def discover_workspace(root: str | Path) -> dict[str, Any]:
             experiments.append({"name": path.stem, "path": rel, "error": str(exc)})
     dashboards = []
     for path in sorted(results_dir.rglob("dashboard.html")) if results_dir.exists() else []:
-        dashboards.append(
-            {
-                "name": path.parent.name,
-                "path": _relative(path, workspace),
-                "url": _file_url(path, workspace),
-            }
-        )
+        dashboards.append(_dashboard_listing(workspace, path))
     return {
         "workspace": str(workspace),
         "satmodel_version": __version__,
@@ -132,6 +126,16 @@ def validate_workspace_experiment(root: str | Path, plan_path: str) -> dict[str,
     }
 
 
+def describe_workspace_dashboard(root: str | Path, dashboard_path: str) -> dict[str, Any]:
+    """Return a structured summary for one generated dashboard."""
+
+    workspace = Path(root).resolve()
+    dashboard_file = _safe_path(workspace, dashboard_path)
+    if dashboard_file.name != "dashboard.html":
+        raise ValueError(f"not a dashboard file: {dashboard_path}")
+    return _dashboard_summary(workspace, dashboard_file)
+
+
 def run_workspace_experiment(root: str | Path, plan_path: str, output_dir: str | None = None) -> dict[str, Any]:
     """Run one experiment plan from a workspace-relative path and return dashboard details."""
 
@@ -154,6 +158,7 @@ def run_workspace_experiment(root: str | Path, plan_path: str, output_dir: str |
         "failed": acceptance["failed_count"],
         "best_run": None if best is None else best.get("run_id"),
         "best_final_error_deg": None if best is None else best.get("final_error_deg"),
+        "summary": _dashboard_summary(workspace, dashboard),
     }
 
 
@@ -285,6 +290,9 @@ class PlatformUIHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/validate-experiment":
                 self._send_json(validate_workspace_experiment(self.workspace_root, payload["path"]))
                 return
+            if parsed.path == "/api/dashboard":
+                self._send_json(describe_workspace_dashboard(self.workspace_root, payload["path"]))
+                return
             if parsed.path == "/api/run-experiment":
                 self._send_json(run_workspace_experiment(self.workspace_root, payload["path"], payload.get("output_dir")))
                 return
@@ -376,6 +384,98 @@ def _parse_list(value) -> list[Any]:
         return values
 
 
+def _dashboard_listing(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
+    summary = _dashboard_summary(workspace, dashboard_file)
+    return {
+        "name": summary["experiment_name"] or dashboard_file.parent.name,
+        "path": summary["path"],
+        "url": summary["url"],
+        "scenario": summary["scenario_name"],
+        "run_count": summary["run_count"],
+        "accepted_count": summary["accepted_count"],
+        "failed_count": summary["failed_count"],
+        "acceptance_rate": summary["acceptance_rate"],
+        "best_run_id": summary["best_run_id"],
+        "best_final_error_deg": summary["best_final_error_deg"],
+    }
+
+
+def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
+    experiment_dir = dashboard_file.parent
+    index = _read_json_file(experiment_dir / "index.json")
+    manifest = _read_json_file(experiment_dir / "experiment_manifest.json")
+    experiment = manifest.get("experiment", {})
+    scenario = experiment.get("scenario", {})
+    runs = index.get("runs", []) if isinstance(index.get("runs"), list) else []
+    best = _select_metric_row(runs, "final_error_deg", reverse=False)
+    worst = _select_metric_row(runs, "final_error_deg", reverse=True)
+    files = []
+    for name in [
+        "README.md",
+        "index.json",
+        "summary_metrics.csv",
+        "experiment_manifest.json",
+        index.get("runtime_schedule"),
+        index.get("mode_timeline"),
+        "dashboard.html",
+    ]:
+        if not name:
+            continue
+        path = experiment_dir / name
+        if path.exists():
+            files.append({"name": name, "url": _file_url(path, workspace)})
+    return {
+        "name": experiment_dir.name,
+        "path": _relative(dashboard_file, workspace),
+        "url": _file_url(dashboard_file, workspace),
+        "output_dir": _relative(experiment_dir, workspace),
+        "experiment_name": experiment.get("metadata", {}).get("name", experiment_dir.name),
+        "scenario_name": scenario.get("metadata", {}).get("name"),
+        "description": experiment.get("metadata", {}).get("description"),
+        "run_count": int(index.get("run_count", len(runs))),
+        "accepted_count": int(index.get("accepted_count", 0)),
+        "failed_count": int(index.get("failed_count", 0)),
+        "acceptance_rate": float(index.get("acceptance_rate", 0.0)),
+        "best_run_id": index.get("best_run_id"),
+        "best_output_dir": index.get("best_output_dir"),
+        "best_final_error_deg": _metric_value(best, "final_error_deg"),
+        "worst_run_id": None if worst is None else worst.get("run_id"),
+        "worst_final_error_deg": _metric_value(worst, "final_error_deg"),
+        "parameter_columns": list(index.get("parameter_columns", [])),
+        "metric_columns": list(index.get("metric_columns", [])),
+        "runs": runs,
+        "best_run": best,
+        "worst_run": worst,
+        "files": files,
+        "readme_url": _file_url(experiment_dir / "README.md", workspace) if (experiment_dir / "README.md").exists() else None,
+        "dashboard_url": _file_url(dashboard_file, workspace),
+    }
+
+
+def _read_json_file(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return data if isinstance(data, dict) else {}
+
+
+def _select_metric_row(rows: list[dict[str, Any]], metric: str, *, reverse: bool) -> dict[str, Any] | None:
+    candidates = [row for row in rows if _metric_value(row, metric) is not None]
+    if not candidates:
+        return rows[0] if rows else None
+    return sorted(candidates, key=lambda row: _metric_value(row, metric), reverse=reverse)[0]
+
+
+def _metric_value(row: dict[str, Any] | None, metric: str) -> float | None:
+    if row is None:
+        return None
+    value = row.get(metric)
+    try:
+        return None if value is None or value == "" else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _render_home() -> str:
     return """<!doctype html>
 <html lang="zh-CN">
@@ -385,48 +485,107 @@ def _render_home() -> str:
   <title>satmodel 仿真平台</title>
   <style>
     :root {
-      --bg: #f5f7fa;
-      --panel: #ffffff;
+      --bg: #eef2f5;
+      --panel: rgba(255, 255, 255, 0.96);
       --ink: #17202a;
-      --muted: #647083;
-      --line: #d8dee8;
-      --accent: #2364aa;
+      --muted: #5f6e82;
+      --line: #d5dce7;
+      --accent: #0f6c7b;
+      --accent-strong: #124e78;
+      --warm: #b96a10;
       --ok: #247a48;
       --bad: #b42318;
+      --shadow: 0 16px 40px rgba(23, 32, 42, 0.08);
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: var(--bg);
       color: var(--ink);
-      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      font: 14px/1.5 "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
       letter-spacing: 0;
+      background:
+        linear-gradient(180deg, rgba(15, 108, 123, 0.08), rgba(15, 108, 123, 0) 220px),
+        repeating-linear-gradient(0deg, rgba(18, 78, 120, 0.035), rgba(18, 78, 120, 0.035) 1px, transparent 1px, transparent 34px),
+        repeating-linear-gradient(90deg, rgba(18, 78, 120, 0.03), rgba(18, 78, 120, 0.03) 1px, transparent 1px, transparent 34px),
+        var(--bg);
     }
     header {
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
-      padding: 18px 24px;
+      padding: 24px 24px 12px;
     }
-    h1 { margin: 0; font-size: 22px; }
-    main {
-      max-width: 1300px;
+    .hero {
+      max-width: 1450px;
       margin: 0 auto;
-      padding: 18px 24px 36px;
+      border: 1px solid rgba(18, 78, 120, 0.16);
+      border-radius: 18px;
+      padding: 24px;
+      background:
+        linear-gradient(135deg, rgba(18, 78, 120, 0.96), rgba(15, 108, 123, 0.86) 58%, rgba(185, 106, 16, 0.85));
+      color: #fff;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      gap: 16px;
+      align-items: end;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+    h1 {
+      margin: 0;
+      font: 700 30px/1.15 "Georgia", "Noto Serif SC", "STSong", serif;
+    }
+    .lead {
+      margin: 10px 0 0;
+      max-width: 760px;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 15px;
+    }
+    .hero-panel {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(6px);
+    }
+    .hero-panel span {
+      display: block;
+      font-size: 12px;
+      opacity: 0.82;
+    }
+    .hero-panel strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 16px;
+      word-break: break-all;
+    }
+    main {
+      max-width: 1450px;
+      margin: 0 auto;
+      padding: 16px 24px 36px;
     }
     .grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(340px, .75fr);
-      gap: 14px;
+      grid-template-columns: minmax(0, 1.12fr) minmax(380px, 0.88fr);
+      gap: 16px;
       align-items: start;
     }
     section {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 14px;
-      margin-bottom: 14px;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
-    h2 { margin: 0 0 12px; font-size: 16px; }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 700;
+    }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     th, td {
       border-bottom: 1px solid #e8ecf2;
@@ -436,51 +595,201 @@ def _render_home() -> str:
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    th { color: var(--muted); background: #fafbfc; font-weight: 650; }
+    th {
+      color: var(--muted);
+      background: #f9fbfc;
+      font-weight: 650;
+    }
     button, input, select {
-      min-height: 34px;
-      border-radius: 6px;
+      min-height: 36px;
+      border-radius: 8px;
       border: 1px solid var(--line);
-      padding: 7px 10px;
+      padding: 8px 10px;
       background: #fff;
       color: var(--ink);
     }
-    label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
-    label input, label select { color: var(--ink); font-size: 14px; }
     button {
       cursor: pointer;
-      border-color: #b9c4d5;
       font-weight: 650;
     }
     button.primary {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
       color: white;
     }
-    button:disabled { opacity: .55; cursor: wait; }
-    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button.secondary {
+      background: #f8fafc;
+      border-color: #c7d2df;
+    }
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    label input, label select { font-size: 14px; }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
     .full { grid-column: 1 / -1; }
-    .path { color: var(--muted); font-size: 13px; }
-    .status { color: var(--muted); min-height: 22px; }
+    .path, .subtle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .status {
+      min-height: 22px;
+      color: var(--muted);
+    }
     .ok { color: var(--ok); }
     .bad { color: var(--bad); }
-    .cards { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 10px; }
-    .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfcfe; }
-    .card span { display: block; color: var(--muted); font-size: 12px; }
-    .card strong { display: block; font-size: 21px; margin-top: 4px; }
-    a { color: var(--accent); text-decoration: none; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .card, .summary-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: linear-gradient(180deg, #ffffff, #f8fbfc);
+    }
+    .card span, .summary-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .card strong, .summary-card strong {
+      display: block;
+      font-size: 21px;
+      margin-top: 4px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .detail-box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fbfcfe;
+    }
+    .detail-box strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 13px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0 0;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #d4dce8;
+      background: #f9fbfc;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .files {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .files a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #d6dee8;
+      background: #fff;
+    }
+    .preview-shell {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .preview-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    iframe {
+      width: 100%;
+      height: 720px;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      color: var(--muted);
+      background: #fbfcfe;
+    }
+    .mini-table {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    a {
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
     a:hover { text-decoration: underline; }
-    @media (max-width: 900px) {
-      main { padding: 14px; }
-      .grid, .cards { grid-template-columns: 1fr; }
+    @media (max-width: 1080px) {
+      .hero, .grid, .cards, .form-grid, .summary-grid, .detail-grid {
+        grid-template-columns: 1fr;
+      }
+      header { padding: 16px 14px 8px; }
+      main { padding: 12px 14px 30px; }
+      iframe { height: 520px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>satmodel 卫星姿态控制仿真平台</h1>
-    <div class="path" id="workspace"></div>
+    <div class="hero">
+      <div>
+        <p class="eyebrow">satmodel platform workspace</p>
+        <h1>卫星姿态控制仿真平台控制台</h1>
+        <p class="lead">把场景、实验计划、批量运行和结果预览收在同一个本地界面里，方便我们逐步把研究脚本打磨成真正的平台工作流。</p>
+      </div>
+      <div class="hero-panel">
+        <span>当前工作区</span>
+        <strong id="workspace">读取中...</strong>
+      </div>
+    </div>
   </header>
   <main>
     <div class="grid">
@@ -492,13 +801,13 @@ def _render_home() -> str:
         <section>
           <h2>实验计划</h2>
           <div class="toolbar">
-            <button id="refresh">刷新</button>
+            <button id="refresh" class="secondary">刷新工作区</button>
             <input id="output" placeholder="可选输出目录，例如 results/platform_ui/demo">
           </div>
           <div id="experiments"></div>
         </section>
         <section>
-          <h2>结果界面</h2>
+          <h2>结果浏览</h2>
           <div id="dashboards"></div>
         </section>
       </div>
@@ -523,11 +832,32 @@ def _render_home() -> str:
           </div>
         </section>
         <section>
-          <h2>工作区</h2>
+          <h2>工作区概览</h2>
           <div class="cards">
             <div class="card"><span>场景</span><strong id="scenario-count">0</strong></div>
             <div class="card"><span>实验计划</span><strong id="experiment-count">0</strong></div>
             <div class="card"><span>结果界面</span><strong id="dashboard-count">0</strong></div>
+          </div>
+        </section>
+        <section>
+          <h2>当前场景</h2>
+          <div id="scenario-summary" class="empty">选择一个场景后，这里会显示时间、控制器、环境和输出配置。</div>
+        </section>
+        <section>
+          <h2>当前结果</h2>
+          <div id="result-summary" class="empty">运行实验或选择一个结果目录后，这里会显示实验摘要、最佳 run 和关键文件。</div>
+        </section>
+        <section>
+          <h2>结果预览</h2>
+          <div id="preview-shell" class="preview-shell">
+            <div class="preview-meta">
+              <span class="subtle" id="preview-title">还没有加载结果界面</span>
+              <div class="toolbar" style="margin:0">
+                <button id="open-dashboard" class="secondary" type="button" disabled>新窗口打开</button>
+              </div>
+            </div>
+            <div id="preview-empty" class="empty" style="margin:14px">选择结果界面后，会在这里直接预览带动画和仿真结果图的 dashboard。</div>
+            <iframe id="preview-frame" title="dashboard preview" hidden></iframe>
           </div>
         </section>
         <section>
@@ -538,10 +868,21 @@ def _render_home() -> str:
     </div>
   </main>
   <script>
-    const state = { workspace: null };
+    const state = {
+      workspace: null,
+      currentDashboard: null,
+      currentDashboardUrl: null,
+      currentScenario: null,
+    };
     const status = document.getElementById('status');
     const output = document.getElementById('output');
+    const previewFrame = document.getElementById('preview-frame');
+    const previewEmpty = document.getElementById('preview-empty');
+    const previewTitle = document.getElementById('preview-title');
+    const openDashboard = document.getElementById('open-dashboard');
     const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const fmt = value => value === null || value === undefined || value === '' ? '—' : Number.isFinite(Number(value)) ? Number(value).toPrecision(5).replace(/\\.0+$/, '') : String(value);
+
     async function api(path, options = {}) {
       const res = await fetch(path, {
         ...options,
@@ -551,11 +892,13 @@ def _render_home() -> str:
       if (!res.ok) throw new Error(data.error || 'request failed');
       return data;
     }
+
     function setStatus(text, cls = '') {
       status.className = `status ${cls}`;
       status.textContent = text;
     }
-    async function load() {
+
+    async function load({preserveSelection = true} = {}) {
       setStatus('正在读取工作区...');
       state.workspace = await api('/api/workspace');
       document.getElementById('workspace').textContent = state.workspace.workspace;
@@ -566,17 +909,30 @@ def _render_home() -> str:
       renderScenarios();
       renderDashboards();
       renderBuilder();
+      if (state.workspace.scenarios.length && (!preserveSelection || !state.currentScenario)) {
+        await showScenario(state.workspace.scenarios[0].path, true);
+      }
+      if (state.workspace.dashboards.length) {
+        const preferred = preserveSelection
+          ? state.workspace.dashboards.find(item => item.path === state.currentDashboard)?.path
+          : null;
+        await showDashboard(preferred || state.workspace.dashboards[state.workspace.dashboards.length - 1].path, true);
+      } else if (!preserveSelection) {
+        clearDashboardPreview();
+      }
       setStatus('就绪。', 'ok');
     }
+
     function renderBuilder() {
       const select = document.getElementById('builder-scenario');
       select.innerHTML = state.workspace.scenarios.map(item => `<option value="${esc(item.path)}">${esc(item.name)} - ${esc(item.path)}</option>`).join('');
       if (!select.value && state.workspace.scenarios[0]) select.value = state.workspace.scenarios[0].path;
     }
+
     function renderScenarios() {
       const rows = state.workspace.scenarios;
       if (!rows.length) {
-        document.getElementById('scenarios').innerHTML = '<div class="path">scenarios/ 目录下还没有普通场景文件。</div>';
+        document.getElementById('scenarios').innerHTML = '<div class="empty">scenarios/ 目录下还没有普通场景文件。</div>';
         return;
       }
       document.getElementById('scenarios').innerHTML = `<table><thead><tr><th>名称</th><th>时间</th><th>系统</th><th>操作</th></tr></thead><tbody>${rows.map(item => {
@@ -585,10 +941,11 @@ def _render_home() -> str:
         return `<tr><td title="${esc(item.path)}">${esc(item.name)}</td><td title="${esc(timing)}">${esc(timing)}</td><td title="${esc(system)}">${esc(system)}</td><td><button onclick="showScenario('${esc(item.path)}')">详情</button> <button onclick="validateScenario('${esc(item.path)}')">校验</button></td></tr>`;
       }).join('')}</tbody></table>`;
     }
+
     function renderExperiments() {
       const rows = state.workspace.experiments;
       if (!rows.length) {
-        document.getElementById('experiments').innerHTML = '<div class="path">scenarios/ 目录下还没有实验计划。</div>';
+        document.getElementById('experiments').innerHTML = '<div class="empty">scenarios/ 目录下还没有实验计划。</div>';
         return;
       }
       document.getElementById('experiments').innerHTML = `<table><thead><tr><th>名称</th><th>路径</th><th>运行规模</th><th>操作</th></tr></thead><tbody>${rows.map(plan => {
@@ -596,14 +953,86 @@ def _render_home() -> str:
         return `<tr><td title="${esc(plan.name)}">${esc(plan.name)}</td><td title="${esc(plan.path)}">${esc(plan.path)}</td><td title="${esc(runs)}">${esc(runs)}</td><td><button onclick="validatePlan('${esc(plan.path)}')">校验</button> <button class="primary" onclick="runPlan('${esc(plan.path)}')">运行</button></td></tr>`;
       }).join('')}</tbody></table>`;
     }
+
     function renderDashboards() {
       const rows = state.workspace.dashboards;
       if (!rows.length) {
-        document.getElementById('dashboards').innerHTML = '<div class="path">还没有结果界面。运行一次实验后会自动生成。</div>';
+        document.getElementById('dashboards').innerHTML = '<div class="empty">还没有结果界面。运行一次实验后会自动生成。</div>';
         return;
       }
-      document.getElementById('dashboards').innerHTML = `<table><thead><tr><th>名称</th><th>路径</th></tr></thead><tbody>${rows.map(item => `<tr><td>${esc(item.name)}</td><td><a href="${item.url}" target="_blank">${esc(item.path)}</a></td></tr>`).join('')}</tbody></table>`;
+      document.getElementById('dashboards').innerHTML = `<table><thead><tr><th>名称</th><th>场景</th><th>Run</th><th>通过率</th><th>操作</th></tr></thead><tbody>${rows.map(item => {
+        const rate = `${Math.round((item.acceptance_rate || 0) * 1000) / 10}%`;
+        return `<tr><td title="${esc(item.path)}">${esc(item.name)}</td><td>${esc(item.scenario || '—')}</td><td>${esc(item.run_count)}</td><td>${esc(rate)}</td><td><button onclick="showDashboard('${esc(item.path)}')">预览</button> <button class="secondary" onclick="window.open('${esc(item.url)}', '_blank')">打开</button></td></tr>`;
+      }).join('')}</tbody></table>`;
     }
+
+    function renderScenarioSummary(result, validated = false) {
+      state.currentScenario = result.path;
+      document.getElementById('scenario-summary').innerHTML = `
+        <div class="summary-grid">
+          <div class="summary-card"><span>场景名称</span><strong>${esc(result.name)}</strong></div>
+          <div class="summary-card"><span>${validated ? '校验状态' : '环境'}</span><strong>${validated ? '已通过' : esc(result.environment || '—')}</strong></div>
+          <div class="summary-card"><span>仿真时长</span><strong>${fmt(result.duration_s)} s</strong></div>
+          <div class="summary-card"><span>积分步长</span><strong>${fmt(result.dt_s)} s</strong></div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-box"><strong>系统构造</strong><div>${esc(result.system || '—')}</div></div>
+          <div class="detail-box"><strong>控制器</strong><div>${esc(result.controller || '—')}</div></div>
+          <div class="detail-box"><strong>随机种子</strong><div>${fmt(result.seed)}</div></div>
+          <div class="detail-box"><strong>故障数量</strong><div>${fmt(result.fault_count)}</div></div>
+        </div>
+        <div class="detail-box"><strong>输出根目录</strong><div class="subtle">${esc(result.output_root || '—')}</div></div>
+      `;
+    }
+
+    function renderDashboardSummary(result) {
+      state.currentDashboard = result.path;
+      state.currentDashboardUrl = result.url;
+      const best = result.best_run || {};
+      const worst = result.worst_run || {};
+      document.getElementById('result-summary').innerHTML = `
+        <div class="summary-grid">
+          <div class="summary-card"><span>实验名称</span><strong>${esc(result.experiment_name || result.name)}</strong></div>
+          <div class="summary-card"><span>所属场景</span><strong>${esc(result.scenario_name || '—')}</strong></div>
+          <div class="summary-card"><span>Run 数量</span><strong>${fmt(result.run_count)}</strong></div>
+          <div class="summary-card"><span>通过率</span><strong>${Math.round((result.acceptance_rate || 0) * 1000) / 10}%</strong></div>
+          <div class="summary-card"><span>最佳 Run</span><strong>${esc(result.best_run_id || '—')}</strong></div>
+          <div class="summary-card"><span>最佳末端误差</span><strong>${fmt(result.best_final_error_deg)} deg</strong></div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-box"><strong>最佳 Run 指标</strong><div>末端误差 ${fmt(best.final_error_deg)} deg / RMS ${fmt(best.rms_error_deg)} deg</div></div>
+          <div class="detail-box"><strong>最差 Run 指标</strong><div>${esc(result.worst_run_id || '—')} / 末端误差 ${fmt(result.worst_final_error_deg)} deg</div></div>
+        </div>
+        <div class="detail-box"><strong>参数列</strong><div class="chips">${(result.parameter_columns || []).map(name => `<span class="chip">${esc(name)}</span>`).join('') || '<span class="subtle">暂无</span>'}</div></div>
+        <div class="detail-box" style="margin-top:10px"><strong>指标列</strong><div class="chips">${(result.metric_columns || []).map(name => `<span class="chip">${esc(name)}</span>`).join('') || '<span class="subtle">暂无</span>'}</div></div>
+        <div class="mini-table">
+          <table>
+            <thead><tr><th>Run</th><th>Accepted</th><th>Final error deg</th><th>RMS error deg</th></tr></thead>
+            <tbody>
+              ${result.runs.slice(0, 4).map(row => `<tr><td>${esc(row.run_id)}</td><td>${esc(row.accepted)}</td><td>${fmt(row.final_error_deg)}</td><td>${fmt(row.rms_error_deg)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="files">${(result.files || []).map(file => `<a href="${file.url}" target="_blank">${esc(file.name)}</a>`).join('')}</div>
+      `;
+      previewTitle.textContent = `${result.experiment_name || result.name} / ${result.scenario_name || '未命名场景'}`;
+      previewFrame.hidden = false;
+      previewEmpty.hidden = true;
+      previewFrame.src = result.url;
+      openDashboard.disabled = false;
+    }
+
+    function clearDashboardPreview() {
+      state.currentDashboard = null;
+      state.currentDashboardUrl = null;
+      document.getElementById('result-summary').innerHTML = '运行实验或选择一个结果目录后，这里会显示实验摘要、最佳 run 和关键文件。';
+      previewTitle.textContent = '还没有加载结果界面';
+      previewFrame.hidden = true;
+      previewFrame.removeAttribute('src');
+      previewEmpty.hidden = false;
+      openDashboard.disabled = true;
+    }
+
     async function validatePlan(path) {
       try {
         setStatus(`正在校验 ${path}...`);
@@ -613,41 +1042,62 @@ def _render_home() -> str:
         setStatus(err.message, 'bad');
       }
     }
-    async function showScenario(path) {
+
+    async function showScenario(path, quiet = false) {
       try {
-        setStatus(`正在读取 ${path}...`);
+        if (!quiet) setStatus(`正在读取 ${path}...`);
         const result = await api('/api/scenario', {method:'POST', body: JSON.stringify({path})});
-        setStatus(`${result.name}：${result.duration_s}s，dt=${result.dt_s}，${result.system}/${result.controller}/${result.environment}，故障=${result.fault_count}`, 'ok');
+        renderScenarioSummary(result);
         document.getElementById('builder-scenario').value = path;
         if (!document.getElementById('builder-name').value) {
           document.getElementById('builder-name').value = `${result.name}_experiment`;
         }
+        if (!quiet) setStatus(`${result.name}：${result.duration_s}s，dt=${result.dt_s}，${result.system}/${result.controller}/${result.environment}，故障=${result.fault_count}`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
     }
+
     async function validateScenario(path) {
       try {
         setStatus(`正在校验 ${path}...`);
         const result = await api('/api/validate-scenario', {method:'POST', body: JSON.stringify({path})});
+        renderScenarioSummary(result, true);
         setStatus(`场景有效：${result.name}，${result.duration_s}s，dt=${result.dt_s}，${result.system}/${result.controller}`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
     }
+
+    async function showDashboard(path, quiet = false) {
+      try {
+        if (!quiet) setStatus(`正在加载 ${path}...`);
+        const result = await api('/api/dashboard', {method:'POST', body: JSON.stringify({path})});
+        renderDashboardSummary(result);
+        if (!quiet) setStatus(`已加载结果：${result.experiment_name}，run=${result.run_count}，最佳=${result.best_run_id || '—'}`, 'ok');
+      } catch (err) {
+        setStatus(err.message, 'bad');
+      }
+    }
+
     async function runPlan(path) {
       try {
         setStatus(`正在运行 ${path}...`);
         const body = {path};
         if (output.value.trim()) body.output_dir = output.value.trim();
         const result = await api('/api/run-experiment', {method:'POST', body: JSON.stringify(body)});
+        await load({preserveSelection: false});
+        if (result.summary) {
+          renderDashboardSummary(result.summary);
+        } else {
+          await showDashboard(result.dashboard, true);
+        }
         setStatus(`完成：${result.runs} 个 run，通过=${result.accepted}，失败=${result.failed}。`, 'ok');
-        await load();
-        window.open(result.dashboard_url, '_blank');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
     }
+
     async function createPlan() {
       try {
         const scenario = document.getElementById('builder-scenario').value;
@@ -668,13 +1118,17 @@ def _render_home() -> str:
         };
         setStatus(`正在创建 ${body.name}...`);
         const result = await api('/api/create-experiment', {method:'POST', body: JSON.stringify(body)});
-        setStatus(`已创建 ${result.path}；校验 run=${result.validation.runs}。`, 'ok');
         await load();
+        setStatus(`已创建 ${result.path}；校验 run=${result.validation.runs}。`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
     }
-    document.getElementById('refresh').addEventListener('click', load);
+
+    openDashboard.addEventListener('click', () => {
+      if (state.currentDashboardUrl) window.open(state.currentDashboardUrl, '_blank');
+    });
+    document.getElementById('refresh').addEventListener('click', () => load());
     document.getElementById('create-plan').addEventListener('click', createPlan);
     load().catch(err => setStatus(err.message, 'bad'));
   </script>

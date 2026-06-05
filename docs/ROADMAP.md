@@ -88,7 +88,7 @@
 
 1. `dashboard.html` 中文静态实验结果界面：run 筛选、验收状态筛选、指标图、run 表、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。
 2. `satmodel-build-dashboard`：为已有实验输出目录生成带仿真结果图的界面。
-3. `satmodel-platform-ui`：中文本地浏览器控制台，用于发现场景、校验场景、创建实验计划、校验和运行实验计划。
+3. `satmodel-platform-ui`：中文本地浏览器控制台，用于发现场景、校验场景、创建实验计划、校验和运行实验计划，并内嵌结果摘要与 dashboard 预览。
 
 计划交付：
 
