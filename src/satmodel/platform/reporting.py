@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from satmodel._version import __version__
+from satmodel.platform.dashboard import build_dashboard
 
 
 class ReportBuilder:
@@ -122,6 +123,7 @@ class ReportBuilder:
             "parameter_columns": self.parameter_columns(),
             "runtime_schedule": runtime_file,
             "mode_timeline": mode_file,
+            "dashboard": "dashboard.html",
             "runs": self.summary.rows,
         }
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
@@ -230,6 +232,9 @@ class ReportBuilder:
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
         return path
 
+    def write_dashboard(self, filename: str = "dashboard.html") -> Path:
+        return build_dashboard(self.summary.output_dir, filename)
+
     def write_outputs(self) -> dict[str, Path]:
         outputs = {
             "summary_metrics": self.write_metrics_csv(),
@@ -242,6 +247,7 @@ class ReportBuilder:
             outputs["mode_timeline"] = self.write_mode_timeline()
         outputs["index"] = self.write_index()
         outputs["report"] = self.write_markdown()
+        outputs["dashboard"] = self.write_dashboard()
         return outputs
 
     def _fieldnames(self) -> list[str]:

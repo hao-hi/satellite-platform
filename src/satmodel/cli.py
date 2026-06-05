@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import webbrowser
 from pathlib import Path
 
 from satmodel.config import load_scenario, scenario_from_mapping, scenario_to_mapping
 from satmodel.config.compiler import compile_scenario
-from satmodel.platform import ExperimentRunner
+from satmodel.platform import ExperimentRunner, build_dashboard
 from satmodel.studies import MonteCarlo, StudyRunner, Sweep, set_mapping_path
 
 
@@ -184,6 +185,24 @@ def validate_experiment_main(argv=None) -> None:
     print(f"Monte Carlo samples: {0 if plan.monte_carlo is None else plan.monte_carlo.samples}")
 
 
+def build_dashboard_main(argv=None) -> None:
+    """Build a static dashboard for an existing experiment output directory."""
+
+    parser = argparse.ArgumentParser(
+        prog="satmodel-build-dashboard",
+        description="Build dashboard.html for a satmodel experiment output directory.",
+    )
+    parser.add_argument("output_dir", help="Path to an experiment output directory containing index.json")
+    parser.add_argument("--filename", default="dashboard.html", help="Dashboard filename to create")
+    parser.add_argument("--open", action="store_true", help="Open the generated dashboard in the default browser")
+    args = parser.parse_args(argv)
+
+    path = build_dashboard(args.output_dir, args.filename)
+    print(f"Dashboard: {path}")
+    if args.open:
+        webbrowser.open(path.resolve().as_uri())
+
+
 def _print_run_summary(summary) -> None:
     rows = summary.metrics_table()
     print(f"Output: {Path(summary.output_dir)}")
@@ -200,6 +219,9 @@ def _print_run_summary(summary) -> None:
             if best is not None:
                 print(f"Best run: {best['run_id']}")
                 print(f"Best final error deg: {float(best['final_error_deg']):.6g}")
+    dashboard = Path(summary.output_dir) / "dashboard.html"
+    if dashboard.exists():
+        print(f"Dashboard: {dashboard}")
 
 
 def main(argv=None) -> None:

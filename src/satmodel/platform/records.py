@@ -113,6 +113,11 @@ class ExperimentSummary:
 
         return ReportBuilder(self).write_mode_timeline(filename)
 
+    def write_dashboard(self, filename: str = "dashboard.html") -> Path:
+        from satmodel.platform.reporting import ReportBuilder
+
+        return ReportBuilder(self).write_dashboard(filename)
+
     def write_markdown(self, filename: str = "README.md") -> Path:
         from satmodel.platform.reporting import ReportBuilder
 

@@ -22,6 +22,7 @@ from satmodel.cli import run_experiment_main
 from satmodel.cli import run_scenario_main
 from satmodel.cli import validate_experiment_main
 from satmodel.cli import validate_scenario_main
+from satmodel.cli import build_dashboard_main
 
 
 def _scenario_mapping(output_root):
@@ -116,6 +117,7 @@ def test_json_scenario_loads_and_study_runner_writes_outputs(tmp_path):
     assert (output / "study_manifest.json").exists()
     assert (output / "index.json").exists()
     assert (output / "experiment_manifest.json").exists()
+    assert (output / "dashboard.html").exists()
 
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["scenario"]["metadata"]["name"] == "platform_smoke"
@@ -373,11 +375,14 @@ def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
     schedule = json.loads((output / "runtime_schedule.json").read_text(encoding="utf-8"))
     timeline = json.loads((output / "mode_timeline.json").read_text(encoding="utf-8"))
     readme = (output / "README.md").read_text(encoding="utf-8")
+    dashboard = (output / "dashboard.html").read_text(encoding="utf-8")
 
     assert "runtime_schedule" in summary.write_outputs()
     assert "mode_timeline" in summary.write_outputs()
+    assert "dashboard" in summary.write_outputs()
     assert index["runtime_schedule"] == "runtime_schedule.json"
     assert index["mode_timeline"] == "mode_timeline.json"
+    assert index["dashboard"] == "dashboard.html"
     assert manifest["experiment"]["runtime"]["name"] == "flight"
     assert manifest["experiment"]["mission"]["steps"][1]["mode"] == "inertial_hold"
     assert schedule["event_count"] == len(schedule["events"])
@@ -385,6 +390,10 @@ def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
     assert timeline["timeline"][1]["reference"] == "body_zero"
     assert "`runtime_schedule.json`" in readme
     assert "`mode_timeline.json`" in readme
+    assert "Run Metrics" in dashboard
+    assert "Mode Timeline" in dashboard
+    assert "runtime_mission_experiment" in dashboard
+    assert '"dashboard_output_href": "README.md"' in dashboard
 
 
 def test_experiment_plan_runtime_and_mission_templates_use_scenario_timing(tmp_path):
@@ -558,8 +567,34 @@ def test_run_experiment_cli_writes_outputs(tmp_path, capsys):
 
     assert "Output:" in captured.out
     assert "Runs: 2" in captured.out
+    assert "Dashboard:" in captured.out
     assert (output / "experiment_manifest.json").exists()
     assert (output / "run_000" / "manifest.json").exists()
+    assert (output / "dashboard.html").exists()
+    assert "run_000/README.md" in (output / "dashboard.html").read_text(encoding="utf-8")
+
+
+def test_build_dashboard_cli_writes_static_interface(tmp_path, capsys):
+    output = tmp_path / "dashboard-output"
+    plan = {
+        "schema_version": 1,
+        "metadata": {"name": "dashboard_experiment"},
+        "scenario": _scenario_mapping(tmp_path / "ignored"),
+        "runtime": {"template": "single_rate"},
+        "mission": {"template": "single_mode", "mode": "safe"},
+        "outputs": {"root": str(output)},
+    }
+    ExperimentRunner(plan).run()
+    (output / "dashboard.html").unlink()
+
+    build_dashboard_main([str(output)])
+    captured = capsys.readouterr()
+    html = (output / "dashboard.html").read_text(encoding="utf-8")
+
+    assert "Dashboard:" in captured.out
+    assert "dashboard_experiment" in html
+    assert "Runtime Schedule" in html
+    assert "Mode Timeline" in html
 
 
 def test_validate_experiment_cli_does_not_write_outputs(tmp_path, capsys):

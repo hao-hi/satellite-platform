@@ -43,6 +43,7 @@ satmodel-run-scenario = "satmodel.cli:run_scenario_main"
 satmodel-validate-scenario = "satmodel.cli:validate_scenario_main"
 satmodel-run-experiment = "satmodel.cli:run_experiment_main"
 satmodel-validate-experiment = "satmodel.cli:validate_experiment_main"
+satmodel-build-dashboard = "satmodel.cli:build_dashboard_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

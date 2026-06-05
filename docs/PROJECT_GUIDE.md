@@ -246,6 +246,7 @@ outputs:
 | `runtime_schedule.json` | 当 `ExperimentPlan` 包含 runtime 时生成，保存 process/task/module 展开的确定性事件列表。 |
 | `mode_timeline.json` | 当 `ExperimentPlan` 包含 mission 时生成，保存任务步骤、模式区间和参考切换信息。 |
 | `index.json` | 面向后续结果浏览、可视化和自动筛选的机器可读索引，并指向可选 runtime/timeline 文件。 |
+| `dashboard.html` | 可直接打开的实验结果界面，用于筛选 run、查看指标图、验收状态、runtime schedule 和 mode timeline。 |
 
 复杂数据格式可以后置：Parquet 更适合大规模批量指标分析，HDF5 更适合保存稠密高维遥测和回放数据。但在 `v0.2`，优先形成可运行、可复现、少依赖的工作流。
 

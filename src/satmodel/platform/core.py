@@ -3,6 +3,7 @@
 New code should import from satmodel.platform or the focused platform modules.
 """
 
+from satmodel.platform.dashboard import build_dashboard
 from satmodel.platform.plan import (
     ExperimentMonteCarloSpec,
     ExperimentOutputSpec,
@@ -53,6 +54,7 @@ __all__ = [
     "RuntimeProcess",
     "RuntimeTask",
     "SUPPORTED_MISSION_MODES",
+    "build_dashboard",
     "detumble_then_hold_mission",
     "experiment_plan_from_mapping",
     "load_experiment_plan",

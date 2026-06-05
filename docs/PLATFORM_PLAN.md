@@ -116,13 +116,17 @@ satmodel/platform/
 
 ## v0.6：可视化、数据库和产品化
 
-计划新增：
+当前已新增：
 
-1. 实验目录浏览、指标筛选、run 对比和验收状态检索。
-2. 姿态误差、轮速、扰动力矩预算、模式时间线和控制诊断图。
-3. 三维姿态回放和 mission timeline 回放。
-4. 结果 schema 版本、迁移策略、变更日志和发布流程。
-5. CI、安装后 smoke test、构建检查和示例实验回归。
+1. `dashboard.html`：实验根目录的静态结果浏览界面，支持 run 筛选、验收状态筛选、指标柱状图、run 表、runtime schedule 和 mode timeline。
+2. `satmodel-build-dashboard OUTPUT_DIR`：为已有实验目录补建静态界面。
+
+后续计划：
+
+1. 姿态误差、轮速、扰动力矩预算、模式时间线和控制诊断图。
+2. 三维姿态回放和 mission timeline 回放。
+3. 实验数据库、结果 schema 版本、迁移策略、变更日志和发布流程。
+4. CI、安装后 smoke test、构建检查和示例实验回归。
 
 ## 数据产品
 
@@ -147,6 +151,7 @@ satmodel/platform/
 | `experiment_manifest.json` | 平台实验 manifest，记录实验计划、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和 run 摘要。 |
 | `runtime_schedule.json` | 可选产物；当计划包含 runtime 时，记录 process/task/module 展开的确定性事件列表。 |
 | `mode_timeline.json` | 可选产物；当计划包含 mission 时，记录任务步骤、模式区间和参考切换。 |
+| `dashboard.html` | 静态结果浏览界面，可直接打开查看指标、run、验收状态、runtime schedule 和 mode timeline。 |
 
 ## 使用入口
 
@@ -162,6 +167,7 @@ satmodel-run-scenario scenarios/quick_pd_zero.json --output results/platform/qui
 ```bash
 satmodel-validate-experiment scenarios/quick_pd_experiment.json
 satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
+satmodel-build-dashboard results/quick_pd_experiment
 ```
 
 Python 入口：
