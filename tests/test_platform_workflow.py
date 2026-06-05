@@ -107,10 +107,17 @@ def test_json_scenario_loads_and_study_runner_writes_outputs(tmp_path):
     assert (output / "README.md").exists()
     assert (output / "summary_metrics.csv").exists()
     assert (output / "study_manifest.json").exists()
+    assert (output / "index.json").exists()
 
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["scenario"]["metadata"]["name"] == "platform_smoke"
     assert manifest["samples"] == 8
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+    assert index["run_count"] == 1
+    assert index["accepted_count"] == 1
+    assert index["failed_count"] == 0
+    assert index["best_run_id"] == "run_000"
+    assert "final_error_deg" in index["metric_columns"]
 
     with (output / "metrics.csv").open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -138,6 +145,7 @@ def test_acceptance_criteria_are_recorded(tmp_path):
 
     assert summary.metrics_table()[0]["accepted"] is False
     assert "final_error_deg" in summary.metrics_table()[0]["failed_acceptance"]
+    assert summary.acceptance_summary()["failed_count"] == 1
     assert manifest["acceptance"]["accepted"] is False
     assert rows[0]["accepted"] == "False"
 
@@ -249,16 +257,26 @@ def test_run_scenario_cli_supports_overrides_and_sweeps(tmp_path, capsys):
     captured = capsys.readouterr()
 
     assert "Runs: 2" in captured.out
+    assert "Accepted: 2" in captured.out
+    assert "Failed: 0" in captured.out
+    assert "Best run:" in captured.out
     assert (output / "README.md").exists()
     assert (output / "run_000" / "manifest.json").exists()
     assert (output / "run_001" / "manifest.json").exists()
     assert (output / "summary_metrics.csv").exists()
     assert (output / "study_manifest.json").exists()
+    assert (output / "index.json").exists()
     first_manifest = json.loads((output / "run_000" / "manifest.json").read_text(encoding="utf-8"))
     second_manifest = json.loads((output / "run_001" / "manifest.json").read_text(encoding="utf-8"))
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
     assert first_manifest["scenario"]["time"]["seed"] == 9
     assert first_manifest["scenario"]["controller"]["pd_kp"] == 0.2
     assert second_manifest["scenario"]["controller"]["pd_kp"] == 0.3
+    assert index["run_count"] == 2
+    assert index["accepted_count"] == 2
+    assert index["failed_count"] == 0
+    assert index["best_run_id"] in {"run_000", "run_001"}
+    assert index["parameter_columns"] == ["param_controller.pd_kp"]
 
 
 def test_study_runner_monte_carlo_creates_seeded_runs(tmp_path):
@@ -298,12 +316,46 @@ def test_run_scenario_cli_supports_monte_carlo(tmp_path, capsys):
     captured = capsys.readouterr()
 
     assert "Runs: 2" in captured.out
+    assert "Accepted: 2" in captured.out
+    assert "Failed: 0" in captured.out
     assert (output / "run_000" / "manifest.json").exists()
     assert (output / "run_001" / "manifest.json").exists()
     with (output / "summary_metrics.csv").open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     assert rows[0]["seed"] == "50"
     assert rows[1]["seed"] == "51"
+
+    readme = (output / "README.md").read_text(encoding="utf-8")
+    assert "Best run:" in readme
+    assert "Accepted:" in readme
+    assert "`param_time.seed`" in readme
+    assert "`param_monte_carlo.sample`" in readme
+
+
+def test_run_scenario_cli_reports_failed_acceptance_summary(tmp_path, capsys):
+    scenario_path = tmp_path / "scenario.json"
+    output = tmp_path / "cli-failed"
+    mapping = _scenario_mapping(tmp_path / "ignored")
+    mapping["acceptance"] = {"max_final_error_deg": 0.0}
+    scenario_path.write_text(json.dumps(mapping, ensure_ascii=False), encoding="utf-8")
+
+    run_scenario_main(
+        [
+            str(scenario_path),
+            "--output",
+            str(output),
+            "--sweep",
+            "time.seed=1,2",
+        ]
+    )
+    captured = capsys.readouterr()
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+
+    assert "Runs: 2" in captured.out
+    assert "Accepted: 0" in captured.out
+    assert "Failed: 2" in captured.out
+    assert index["accepted_count"] == 0
+    assert index["failed_count"] == 2
 
 
 def test_validate_scenario_cli_does_not_write_outputs(tmp_path, capsys):
@@ -354,7 +406,12 @@ def test_study_runner_sweep_creates_run_directories(tmp_path):
     assert (tmp_path / "sweep" / "README.md").exists()
     assert (tmp_path / "sweep" / "summary_metrics.csv").exists()
     assert (tmp_path / "sweep" / "study_manifest.json").exists()
+    assert (tmp_path / "sweep" / "index.json").exists()
     assert (tmp_path / "sweep" / "run_000" / "manifest.json").exists()
     assert (tmp_path / "sweep" / "run_001" / "manifest.json").exists()
     assert summary.metrics_table()[0]["param_time.seed"] == 1
     assert summary.metrics_table()[1]["param_time.seed"] == 2
+    assert summary.acceptance_summary()["run_count"] == 2
+    assert summary.best_row()["run_id"] in {"run_000", "run_001"}
+    assert summary.parameter_columns() == ["param_time.seed"]
+    assert "final_error_deg" in summary.metric_columns()

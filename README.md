@@ -225,7 +225,7 @@ satmodel-run-scenario scenarios/quick_pd_zero.json \
   --sweep controller.pd_kp=0.05,0.08,0.12
 ```
 
-参数扫描会在输出根目录生成 `summary_metrics.csv` 和 `study_manifest.json`，每个 run 则放在 `run_000/`、`run_001/` 等子目录中。
+参数扫描会在输出根目录生成 `README.md`、`index.json`、`summary_metrics.csv` 和 `study_manifest.json`，每个 run 则放在 `run_000/`、`run_001/` 等子目录中。
 
 如果要做随机噪声鲁棒性检查，可以用 Monte Carlo seed 序列批量运行：
 
@@ -236,7 +236,7 @@ satmodel-run-scenario scenarios/quick_pd_zero.json \
   --monte-carlo-seed 100
 ```
 
-这会生成 `time.seed=100..119` 的 20 个 run。也可以和 `--sweep` 组合，形成“每组参数下跑多组随机 seed”的小型批量实验。
+这会生成 `time.seed=100..119` 的 20 个 run。也可以和 `--sweep` 组合，形成“每组参数下跑多组随机 seed”的小型批量实验。跑完后先打开输出根目录的 `README.md` 看通过/失败数量、最佳 run 和关键指标；程序化分析则读取 `index.json` 或 `summary_metrics.csv`。
 
 场景文件也可以配置 orbital 环境和轨道参数：
 

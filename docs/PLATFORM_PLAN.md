@@ -83,6 +83,8 @@
 
 | 文件 | 内容 |
 | --- | --- |
+| `README.md` | study 级人读摘要，记录 run 数、通过/失败数量、通过率、最佳 run、最差 run、参数列、指标列和文件索引。 |
+| `index.json` | 面向后续平台浏览和可视化的机器可读索引，记录验收统计、最佳 run、参数列、指标列和所有 run 摘要。 |
 | `summary_metrics.csv` | 所有 run 的指标、参数列、系统选择、故障数量、验收结果和输出目录。 |
 | `study_manifest.json` | study 级版本、生成时间、run 数和摘要行。 |
 
@@ -203,6 +205,8 @@ satmodel-run-scenario scenarios/cubesat_rw_pd_demo.json \
   --monte-carlo 20 \
   --monte-carlo-seed 100
 ```
+
+批量实验完成后，优先查看输出根目录的 `README.md`，它会汇总通过/失败数量、通过率、最佳 run、最差 run 和关键指标表；后续可视化或自动筛选可以读取同目录的 `index.json`。
 
 平台入口已经支持单场景运行、Python/CLI 简单参数扫描、轻量 Monte Carlo、控制器参数、轻量轨道环境、反作用轮配置和 `when_s=0.0` 起始轮失效。旧入口仍继续可用：
 

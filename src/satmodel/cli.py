@@ -124,6 +124,14 @@ def run_scenario_main(argv=None) -> None:
         print(f"Runs: {len(rows)}")
         print(f"Final error deg: {float(row['final_error_deg']):.6g}")
         print(f"RMS error deg: {float(row['rms_error_deg']):.6g}")
+        if len(rows) > 1:
+            acceptance = summary.acceptance_summary()
+            best = summary.best_row()
+            print(f"Accepted: {acceptance['accepted_count']}")
+            print(f"Failed: {acceptance['failed_count']}")
+            if best is not None:
+                print(f"Best run: {best['run_id']}")
+                print(f"Best final error deg: {float(best['final_error_deg']):.6g}")
 
 
 def validate_scenario_main(argv=None) -> None:
