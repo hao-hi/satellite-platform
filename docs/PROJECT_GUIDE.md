@@ -248,7 +248,7 @@ outputs:
 | `index.json` | 面向后续结果浏览、可视化和自动筛选的机器可读索引，并指向可选 runtime/timeline 文件。 |
 | `dashboard.html` | 可直接打开的中文实验结果界面，用于筛选 run、查看指标图、验收状态、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。 |
 
-本地中文操作界面可以通过 `satmodel-platform-ui --open` 启动。它会扫描 `scenarios/` 目录中的场景和实验计划，并提供查看/校验场景、创建实验计划、校验、运行、结果摘要浏览和内嵌 dashboard 预览。
+本地中文操作界面可以通过 `satmodel-platform-ui --open` 启动。它会扫描 `scenarios/` 目录中的场景和实验计划，并提供查看/校验场景、创建实验计划、校验、运行、结果摘要浏览、关键 run 对比和内嵌 dashboard 预览。
 
 复杂数据格式可以后置：Parquet 更适合大规模批量指标分析，HDF5 更适合保存稠密高维遥测和回放数据。但在 `v0.2`，优先形成可运行、可复现、少依赖的工作流。
 

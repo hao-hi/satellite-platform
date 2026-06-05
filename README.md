@@ -262,7 +262,7 @@ satmodel-build-dashboard results/quick_pd_experiment
 satmodel-platform-ui --open
 ```
 
-中文控制台会发现 `scenarios/` 下的场景和实验计划，支持查看和校验场景、从场景生成新的实验计划、校验计划、运行实验，并在控制台内嵌预览带动画和仿真结果图的 `dashboard.html`；也可以再单独新窗口打开。
+中文控制台会发现 `scenarios/` 下的场景和实验计划，支持查看和校验场景、从场景生成新的实验计划、校验计划、运行实验，并在控制台内嵌预览带动画和仿真结果图的 `dashboard.html`；同时提供关键 run 对比和关键曲线浏览，也可以再单独新窗口打开。
 
 后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
 

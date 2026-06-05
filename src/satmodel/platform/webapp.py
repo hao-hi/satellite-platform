@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import mimetypes
 import re
@@ -409,6 +410,7 @@ def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
     runs = index.get("runs", []) if isinstance(index.get("runs"), list) else []
     best = _select_metric_row(runs, "final_error_deg", reverse=False)
     worst = _select_metric_row(runs, "final_error_deg", reverse=True)
+    compare_run_ids = _compare_run_ids(runs, best, worst)
     files = []
     for name in [
         "README.md",
@@ -446,6 +448,8 @@ def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
         "runs": runs,
         "best_run": best,
         "worst_run": worst,
+        "compare_run_ids": compare_run_ids,
+        "compare_histories": _compare_histories(experiment_dir, runs, compare_run_ids),
         "files": files,
         "readme_url": _file_url(experiment_dir / "README.md", workspace) if (experiment_dir / "README.md").exists() else None,
         "dashboard_url": _file_url(dashboard_file, workspace),
@@ -474,6 +478,108 @@ def _metric_value(row: dict[str, Any] | None, metric: str) -> float | None:
         return None if value is None or value == "" else float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _compare_run_ids(
+    runs: list[dict[str, Any]],
+    best: dict[str, Any] | None,
+    worst: dict[str, Any] | None,
+    *,
+    limit: int = 4,
+) -> list[str]:
+    ordered: list[str] = []
+    for row in [best, worst, *runs]:
+        run_id = None if row is None else row.get("run_id")
+        if not run_id or run_id in ordered:
+            continue
+        ordered.append(run_id)
+        if len(ordered) >= limit:
+            break
+    return ordered
+
+
+def _compare_histories(
+    experiment_dir: Path,
+    runs: list[dict[str, Any]],
+    run_ids: list[str],
+) -> dict[str, list[dict[str, Any]]]:
+    run_map = {str(row.get("run_id")): row for row in runs if row.get("run_id")}
+    histories: dict[str, list[dict[str, Any]]] = {}
+    for run_id in run_ids:
+        row = run_map.get(run_id)
+        if row is None:
+            continue
+        path = _time_history_path(experiment_dir, row)
+        rows = _read_time_history(path)
+        if rows:
+            histories[run_id] = _sample_history(rows, max_points=260)
+    return histories
+
+
+def _time_history_path(experiment_dir: Path, row: dict[str, Any]) -> Path:
+    output_dir = row.get("output_dir")
+    run_id = row.get("run_id")
+    candidates: list[Path] = []
+    if output_dir:
+        run_dir = Path(str(output_dir))
+        candidates.extend([run_dir, experiment_dir / run_dir, experiment_dir / run_dir.name])
+    if run_id:
+        candidates.append(experiment_dir / str(run_id))
+    if not candidates:
+        candidates.append(experiment_dir)
+    for candidate in candidates:
+        path = candidate / "time_history.csv"
+        if path.exists():
+            return path
+    return candidates[0] / "time_history.csv"
+
+
+def _read_time_history(path: Path) -> list[dict[str, Any]]:
+    columns = {
+        "time_s",
+        "attitude_error_deg",
+        "omega_x_rad_s",
+        "omega_y_rad_s",
+        "omega_z_rad_s",
+        "commanded_torque_x_nm",
+        "commanded_torque_y_nm",
+        "commanded_torque_z_nm",
+        "applied_torque_x_nm",
+        "applied_torque_y_nm",
+        "applied_torque_z_nm",
+    }
+    rows = _read_csv_file(path)
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        item: dict[str, Any] = {}
+        for key in columns:
+            value = row.get(key)
+            if value in (None, ""):
+                continue
+            try:
+                item[key] = float(value)
+            except (TypeError, ValueError):
+                item[key] = value
+        if item:
+            result.append(item)
+    return result
+
+
+def _read_csv_file(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _sample_history(rows: list[dict[str, Any]], *, max_points: int) -> list[dict[str, Any]]:
+    if len(rows) <= max_points:
+        return rows
+    step = max(1, len(rows) // max_points)
+    sampled = rows[::step]
+    if sampled[-1] != rows[-1]:
+        sampled.append(rows[-1])
+    return sampled
 
 
 def _render_home() -> str:
@@ -762,13 +868,60 @@ def _render_home() -> str:
       border-radius: 12px;
       overflow: hidden;
     }
+    .compare-toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .compare-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: linear-gradient(180deg, #ffffff, #f8fbfc);
+    }
+    .compare-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+    .compare-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .compare-metrics div {
+      border: 1px solid #e4eaf2;
+      border-radius: 10px;
+      padding: 8px;
+      background: #fff;
+    }
+    .compare-metrics span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .compare-chart {
+      width: 100%;
+      height: 220px;
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfcfe;
+      margin-top: 10px;
+    }
     a {
       color: var(--accent-strong);
       text-decoration: none;
     }
     a:hover { text-decoration: underline; }
     @media (max-width: 1080px) {
-      .hero, .grid, .cards, .form-grid, .summary-grid, .detail-grid {
+      .hero, .grid, .cards, .form-grid, .summary-grid, .detail-grid, .compare-toolbar, .compare-grid {
         grid-template-columns: 1fr;
       }
       header { padding: 16px 14px 8px; }
@@ -848,6 +1001,10 @@ def _render_home() -> str:
           <div id="result-summary" class="empty">运行实验或选择一个结果目录后，这里会显示实验摘要、最佳 run 和关键文件。</div>
         </section>
         <section>
+          <h2>关键 Run 对比</h2>
+          <div id="compare-view" class="empty">选择结果目录后，这里会显示最佳/最差或关键 run 的对照指标和曲线。</div>
+        </section>
+        <section>
           <h2>结果预览</h2>
           <div id="preview-shell" class="preview-shell">
             <div class="preview-meta">
@@ -880,6 +1037,7 @@ def _render_home() -> str:
     const previewEmpty = document.getElementById('preview-empty');
     const previewTitle = document.getElementById('preview-title');
     const openDashboard = document.getElementById('open-dashboard');
+    const compareView = document.getElementById('compare-view');
     const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const fmt = value => value === null || value === undefined || value === '' ? '—' : Number.isFinite(Number(value)) ? Number(value).toPrecision(5).replace(/\\.0+$/, '') : String(value);
 
@@ -1020,17 +1178,141 @@ def _render_home() -> str:
       previewEmpty.hidden = true;
       previewFrame.src = result.url;
       openDashboard.disabled = false;
+      renderCompareView(result);
     }
 
     function clearDashboardPreview() {
       state.currentDashboard = null;
       state.currentDashboardUrl = null;
       document.getElementById('result-summary').innerHTML = '运行实验或选择一个结果目录后，这里会显示实验摘要、最佳 run 和关键文件。';
+      compareView.innerHTML = '选择结果目录后，这里会显示最佳/最差或关键 run 的对照指标和曲线。';
       previewTitle.textContent = '还没有加载结果界面';
       previewFrame.hidden = true;
       previewFrame.removeAttribute('src');
       previewEmpty.hidden = false;
       openDashboard.disabled = true;
+    }
+
+    function renderCompareView(result) {
+      const runRows = new Map((result.runs || []).map(row => [row.run_id, row]));
+      const compareIds = (result.compare_run_ids || []).filter(runId => runRows.has(runId));
+      const histories = result.compare_histories || {};
+      if (!compareIds.length) {
+        compareView.innerHTML = '<div class="empty">当前结果没有可用于对比的关键 run。</div>';
+        return;
+      }
+      const defaultA = compareIds[0];
+      const defaultB = compareIds[1] || compareIds[0];
+      compareView.innerHTML = `
+        <div class="compare-toolbar">
+          <label>对比 Run A<select id="compare-a">${compareIds.map(runId => `<option value="${esc(runId)}">${esc(runId)}</option>`).join('')}</select></label>
+          <label>对比 Run B<select id="compare-b">${compareIds.map(runId => `<option value="${esc(runId)}">${esc(runId)}</option>`).join('')}</select></label>
+        </div>
+        <div class="compare-grid">
+          <div id="compare-card-a" class="compare-card"></div>
+          <div id="compare-card-b" class="compare-card"></div>
+        </div>
+        <svg id="compare-attitude" class="compare-chart" role="img" aria-label="姿态误差对比图"></svg>
+        <svg id="compare-torque" class="compare-chart" role="img" aria-label="控制力矩对比图"></svg>
+      `;
+      const selectA = document.getElementById('compare-a');
+      const selectB = document.getElementById('compare-b');
+      selectA.value = defaultA;
+      selectB.value = defaultB;
+
+      const update = () => {
+        const runA = runRows.get(selectA.value) || {};
+        const runB = runRows.get(selectB.value) || {};
+        document.getElementById('compare-card-a').innerHTML = renderCompareCard(runA, 'A');
+        document.getElementById('compare-card-b').innerHTML = renderCompareCard(runB, 'B');
+        drawCompareChart(
+          'compare-attitude',
+          histories[selectA.value] || [],
+          histories[selectB.value] || [],
+          {
+            title: '姿态误差对比',
+            metricKey: 'attitude_error_deg',
+            label: 'attitude_error_deg',
+            colorA: '#124e78',
+            colorB: '#b96a10',
+          }
+        );
+        drawCompareChart(
+          'compare-torque',
+          histories[selectA.value] || [],
+          histories[selectB.value] || [],
+          {
+            title: '执行力矩 x 对比',
+            metricKey: 'applied_torque_x_nm',
+            label: 'applied_torque_x_nm',
+            colorA: '#0f6c7b',
+            colorB: '#9f2d24',
+          }
+        );
+      };
+      selectA.addEventListener('change', update);
+      selectB.addEventListener('change', update);
+      update();
+    }
+
+    function renderCompareCard(row, slot) {
+      return `
+        <h3>Run ${slot} · ${esc(row.run_id || '—')}</h3>
+        <div class="compare-metrics">
+          <div><span>末端误差</span><strong>${fmt(row.final_error_deg)} deg</strong></div>
+          <div><span>RMS 误差</span><strong>${fmt(row.rms_error_deg)} deg</strong></div>
+          <div><span>峰值力矩</span><strong>${fmt(row.peak_torque_nm)} N m</strong></div>
+          <div><span>验收状态</span><strong>${esc(row.accepted)}</strong></div>
+        </div>
+      `;
+    }
+
+    function drawCompareChart(id, historyA, historyB, config) {
+      const svg = document.getElementById(id);
+      const rows = [
+        ...historyA.map(row => ({...row, __series: 'A'})),
+        ...historyB.map(row => ({...row, __series: 'B'})),
+      ].filter(row => Number.isFinite(Number(row.time_s)) && Number.isFinite(Number(row[config.metricKey])));
+      if (!rows.length) {
+        svg.innerHTML = '<text x="18" y="34" fill="#637083">暂无对比时序数据</text>';
+        return;
+      }
+      const width = svg.clientWidth || 720;
+      const height = svg.clientHeight || 220;
+      const pad = {left: 48, right: 16, top: 20, bottom: 34};
+      const xs = rows.map(row => Number(row.time_s));
+      const ys = rows.map(row => Number(row[config.metricKey]));
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys, 0);
+      const maxY = Math.max(...ys, 0);
+      const spanX = Math.max(maxX - minX, 1e-9);
+      const spanY = Math.max(maxY - minY, 1e-9);
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+      const xScale = x => pad.left + (x - minX) / spanX * plotW;
+      const yScale = y => pad.top + plotH - (y - minY) / spanY * plotH;
+      const grid = [0, .25, .5, .75, 1].map(t => {
+        const y = pad.top + plotH * t;
+        return `<line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" stroke="#d7deea" stroke-width="1"/>`;
+      }).join('');
+      const paths = [
+        {rows: historyA, color: config.colorA, label: 'Run A'},
+        {rows: historyB, color: config.colorB, label: 'Run B'},
+      ].map(series => {
+        const points = series.rows
+          .filter(row => Number.isFinite(Number(row.time_s)) && Number.isFinite(Number(row[config.metricKey])))
+          .map(row => `${xScale(Number(row.time_s))},${yScale(Number(row[config.metricKey]))}`);
+        if (!points.length) return '';
+        return `<polyline points="${points.join(' ')}" fill="none" stroke="${series.color}" stroke-width="2.2"><title>${series.label}</title></polyline>`;
+      }).join('');
+      const legend = `
+        <text x="${pad.left}" y="14" fill="${config.colorA}" font-size="11">Run A</text>
+        <text x="${pad.left + 78}" y="14" fill="${config.colorB}" font-size="11">Run B</text>
+        <text x="${width - 180}" y="14" fill="#637083" font-size="11">${config.title}</text>
+      `;
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.innerHTML = `${grid}<line x1="${pad.left}" y1="${pad.top + plotH}" x2="${width - pad.right}" y2="${pad.top + plotH}" stroke="#bfc9d8" stroke-width="1"/>${paths}${legend}<text x="${width - 62}" y="${height - 10}" fill="#637083" font-size="11">time_s</text><text x="8" y="30" fill="#637083" font-size="11">${fmt(maxY)}</text><text x="8" y="${height - 38}" fill="#637083" font-size="11">${fmt(minY)}</text>`;
     }
 
     async function validatePlan(path) {
