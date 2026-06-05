@@ -88,7 +88,7 @@
 
 1. `dashboard.html` 静态实验结果界面：run 筛选、验收状态筛选、指标图、run 表、runtime schedule 和 mode timeline。
 2. `satmodel-build-dashboard`：为已有实验输出目录生成界面。
-3. `satmodel-platform-ui`：本地浏览器控制台，用于发现、创建、校验和运行实验计划。
+3. `satmodel-platform-ui`：本地浏览器控制台，用于发现场景、校验场景、创建实验计划、校验和运行实验计划。
 
 计划交付：
 

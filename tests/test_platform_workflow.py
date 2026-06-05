@@ -25,8 +25,10 @@ from satmodel.cli import validate_scenario_main
 from satmodel.cli import build_dashboard_main
 from satmodel.platform.webapp import (
     create_workspace_experiment_plan,
+    describe_workspace_scenario,
     discover_workspace,
     run_workspace_experiment,
+    validate_workspace_scenario,
     validate_workspace_experiment,
 )
 
@@ -626,11 +628,18 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     )
 
     discovered = discover_workspace(workspace)
+    scenario_details = describe_workspace_scenario(workspace, "scenarios/scenario.json")
+    scenario_validation = validate_workspace_scenario(workspace, "scenarios/scenario.json")
     validation = validate_workspace_experiment(workspace, "scenarios/plan.json")
     result = run_workspace_experiment(workspace, "scenarios/plan.json", "results/webapp_plan")
     rediscovered = discover_workspace(workspace)
 
     assert discovered["experiments"][0]["name"] == "webapp_plan"
+    assert discovered["scenarios"][0]["name"] == "platform_smoke"
+    assert scenario_details["controller"] == "pd"
+    assert scenario_details["duration_s"] == 0.4
+    assert scenario_validation["valid"] is True
+    assert scenario_validation["system"] == "default"
     assert validation["valid"] is True
     assert validation["runs"] == 1
     assert result["runs"] == 1

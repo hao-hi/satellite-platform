@@ -13,6 +13,8 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from satmodel._version import __version__
+from satmodel.config import load_scenario
+from satmodel.config.compiler import compile_scenario
 from satmodel.platform.dashboard import build_dashboard
 from satmodel.platform.plan import load_experiment_plan
 from satmodel.platform.runner import ExperimentRunner
@@ -46,6 +48,10 @@ def discover_workspace(root: str | Path) -> dict[str, Any]:
                     {
                         "name": data.get("metadata", {}).get("name", path.stem) if isinstance(data, dict) else path.stem,
                         "path": rel,
+                        "duration_s": data.get("time", {}).get("duration_s") if isinstance(data, dict) else None,
+                        "dt_s": data.get("time", {}).get("dt_s") if isinstance(data, dict) else None,
+                        "system": data.get("system", {}).get("builder") if isinstance(data, dict) else None,
+                        "controller": data.get("system", {}).get("controller") if isinstance(data, dict) else None,
                     }
                 )
         except Exception as exc:
@@ -65,6 +71,46 @@ def discover_workspace(root: str | Path) -> dict[str, Any]:
         "scenarios": scenarios,
         "experiments": experiments,
         "dashboards": dashboards,
+    }
+
+
+def describe_workspace_scenario(root: str | Path, scenario_path: str) -> dict[str, Any]:
+    """Return a concise description of a workspace scenario file."""
+
+    workspace = Path(root).resolve()
+    scenario_file = _safe_path(workspace, scenario_path)
+    spec = load_scenario(scenario_file)
+    return {
+        "name": spec.metadata.name,
+        "path": _relative(scenario_file, workspace),
+        "description": spec.metadata.description,
+        "duration_s": spec.time.duration_s,
+        "dt_s": spec.time.dt_s,
+        "seed": spec.time.seed,
+        "system": spec.system.builder,
+        "controller": spec.system.controller,
+        "environment": spec.system.environment,
+        "fault_count": len(spec.faults),
+        "output_root": spec.outputs.root,
+    }
+
+
+def validate_workspace_scenario(root: str | Path, scenario_path: str) -> dict[str, Any]:
+    """Validate and compile a workspace scenario file."""
+
+    workspace = Path(root).resolve()
+    scenario_file = _safe_path(workspace, scenario_path)
+    spec = load_scenario(scenario_file)
+    compiled = compile_scenario(spec)
+    return {
+        "valid": True,
+        "name": spec.metadata.name,
+        "path": _relative(scenario_file, workspace),
+        "duration_s": compiled.config.duration,
+        "dt_s": compiled.config.dt,
+        "system": spec.system.builder,
+        "controller": spec.system.controller,
+        "environment": spec.system.environment,
     }
 
 
@@ -230,6 +276,12 @@ class PlatformUIHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             payload = self._read_json()
+            if parsed.path == "/api/scenario":
+                self._send_json(describe_workspace_scenario(self.workspace_root, payload["path"]))
+                return
+            if parsed.path == "/api/validate-scenario":
+                self._send_json(validate_workspace_scenario(self.workspace_root, payload["path"]))
+                return
             if parsed.path == "/api/validate-experiment":
                 self._send_json(validate_workspace_experiment(self.workspace_root, payload["path"]))
                 return
@@ -434,6 +486,10 @@ def _render_home() -> str:
     <div class="grid">
       <div>
         <section>
+          <h2>Scenarios</h2>
+          <div id="scenarios"></div>
+        </section>
+        <section>
           <h2>Experiment Plans</h2>
           <div class="toolbar">
             <button id="refresh">Refresh</button>
@@ -507,6 +563,7 @@ def _render_home() -> str:
       document.getElementById('experiment-count').textContent = state.workspace.experiments.length;
       document.getElementById('dashboard-count').textContent = state.workspace.dashboards.length;
       renderExperiments();
+      renderScenarios();
       renderDashboards();
       renderBuilder();
       setStatus('Ready.', 'ok');
@@ -515,6 +572,18 @@ def _render_home() -> str:
       const select = document.getElementById('builder-scenario');
       select.innerHTML = state.workspace.scenarios.map(item => `<option value="${esc(item.path)}">${esc(item.name)} - ${esc(item.path)}</option>`).join('');
       if (!select.value && state.workspace.scenarios[0]) select.value = state.workspace.scenarios[0].path;
+    }
+    function renderScenarios() {
+      const rows = state.workspace.scenarios;
+      if (!rows.length) {
+        document.getElementById('scenarios').innerHTML = '<div class="path">No scenario files found in scenarios/.</div>';
+        return;
+      }
+      document.getElementById('scenarios').innerHTML = `<table><thead><tr><th>Name</th><th>Timing</th><th>System</th><th>Actions</th></tr></thead><tbody>${rows.map(item => {
+        const timing = `${item.duration_s ?? ''} s / dt ${item.dt_s ?? ''}`;
+        const system = `${item.system || ''} / ${item.controller || ''}`;
+        return `<tr><td title="${esc(item.path)}">${esc(item.name)}</td><td title="${esc(timing)}">${esc(timing)}</td><td title="${esc(system)}">${esc(system)}</td><td><button onclick="showScenario('${esc(item.path)}')">Details</button> <button onclick="validateScenario('${esc(item.path)}')">Validate</button></td></tr>`;
+      }).join('')}</tbody></table>`;
     }
     function renderExperiments() {
       const rows = state.workspace.experiments;
@@ -540,6 +609,28 @@ def _render_home() -> str:
         setStatus(`Validating ${path}...`);
         const result = await api('/api/validate-experiment', {method:'POST', body: JSON.stringify({path})});
         setStatus(`Valid: ${result.name}, runs=${result.runs}, scenario=${result.scenario}`, 'ok');
+      } catch (err) {
+        setStatus(err.message, 'bad');
+      }
+    }
+    async function showScenario(path) {
+      try {
+        setStatus(`Loading ${path}...`);
+        const result = await api('/api/scenario', {method:'POST', body: JSON.stringify({path})});
+        setStatus(`${result.name}: ${result.duration_s}s, dt=${result.dt_s}, ${result.system}/${result.controller}/${result.environment}, faults=${result.fault_count}`, 'ok');
+        document.getElementById('builder-scenario').value = path;
+        if (!document.getElementById('builder-name').value) {
+          document.getElementById('builder-name').value = `${result.name}_experiment`;
+        }
+      } catch (err) {
+        setStatus(err.message, 'bad');
+      }
+    }
+    async function validateScenario(path) {
+      try {
+        setStatus(`Validating ${path}...`);
+        const result = await api('/api/validate-scenario', {method:'POST', body: JSON.stringify({path})});
+        setStatus(`Scenario valid: ${result.name}, ${result.duration_s}s, dt=${result.dt_s}, ${result.system}/${result.controller}`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
