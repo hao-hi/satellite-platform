@@ -246,9 +246,9 @@ outputs:
 | `runtime_schedule.json` | 当 `ExperimentPlan` 包含 runtime 时生成，保存 process/task/module 展开的确定性事件列表。 |
 | `mode_timeline.json` | 当 `ExperimentPlan` 包含 mission 时生成，保存任务步骤、模式区间和参考切换信息。 |
 | `index.json` | 面向后续结果浏览、可视化和自动筛选的机器可读索引，并指向可选 runtime/timeline 文件。 |
-| `dashboard.html` | 可直接打开的实验结果界面，用于筛选 run、查看指标图、验收状态、runtime schedule 和 mode timeline。 |
+| `dashboard.html` | 可直接打开的中文实验结果界面，用于筛选 run、查看指标图、验收状态、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。 |
 
-本地操作界面可以通过 `satmodel-platform-ui --open` 启动。它会扫描 `scenarios/` 目录中的场景和实验计划，并提供查看/校验场景、创建实验计划、校验、运行和打开 dashboard 的按钮。
+本地中文操作界面可以通过 `satmodel-platform-ui --open` 启动。它会扫描 `scenarios/` 目录中的场景和实验计划，并提供查看/校验场景、创建实验计划、校验、运行和打开 dashboard 的按钮。
 
 复杂数据格式可以后置：Parquet 更适合大规模批量指标分析，HDF5 更适合保存稠密高维遥测和回放数据。但在 `v0.2`，优先形成可运行、可复现、少依赖的工作流。
 
@@ -259,7 +259,7 @@ outputs:
 - v0.3 平台架构收敛：`satmodel.platform` 已拆成 `plan.py`、`runner.py`、`records.py`、`reporting.py` 和 `project.py`，`core.py` 仅作为兼容转发入口。
 - v0.4 运行时与任务序列：已引入 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule`、`MissionSequence` 和 `ModeTimeline` 的轻量骨架，并提供 `single_rate`、`single_mode` 和 `detumble_then_hold` 模板，先作为正常任务流程、多速率调度和参考/模式切换的描述与验证层。
 - v0.5 高保真建模：按 environment setup、propagation setup、spacecraft model、actuator model、sensor model 分层升级。
-- v0.6 可视化和产品化：实验数据库、结果浏览、run 对比、三维回放、发布流程和 schema 迁移。
+- v0.6 可视化和产品化：实验数据库、结果浏览、run 对比、姿态动画、仿真结果图、更高保真三维回放、发布流程和 schema 迁移。
 
 这些能力应继续复用现有组件边界，避免把任务逻辑、文件读写或可视化代码混入动力学、控制器和扰动模型。
 

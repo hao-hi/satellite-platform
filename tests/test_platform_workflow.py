@@ -398,10 +398,13 @@ def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
     assert timeline["timeline"][1]["reference"] == "body_zero"
     assert "`runtime_schedule.json`" in readme
     assert "`mode_timeline.json`" in readme
-    assert "Run Metrics" in dashboard
-    assert "Mode Timeline" in dashboard
+    assert "指标总览" in dashboard
+    assert "仿真结果图" in dashboard
+    assert "姿态误差动画" in dashboard
+    assert "任务模式时间线" in dashboard
     assert "runtime_mission_experiment" in dashboard
     assert '"dashboard_output_href": "README.md"' in dashboard
+    assert '"time_history"' in dashboard
 
 
 def test_experiment_plan_runtime_and_mission_templates_use_scenario_timing(tmp_path):
@@ -601,8 +604,27 @@ def test_build_dashboard_cli_writes_static_interface(tmp_path, capsys):
 
     assert "Dashboard:" in captured.out
     assert "dashboard_experiment" in html
-    assert "Runtime Schedule" in html
-    assert "Mode Timeline" in html
+    assert "运行时调度" in html
+    assert "任务模式时间线" in html
+    assert "仿真结果图" in html
+
+
+def test_dashboard_loads_time_history_for_relative_output_dirs(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    output = "results/relative-dashboard"
+    plan = {
+        "schema_version": 1,
+        "metadata": {"name": "relative_dashboard"},
+        "scenario": _scenario_mapping("ignored"),
+        "outputs": {"root": output},
+    }
+
+    ExperimentRunner(plan).run()
+    html = (tmp_path / output / "dashboard.html").read_text(encoding="utf-8")
+
+    assert '"time_history": {"run_000"' in html
+    assert "attitude_error_deg" in html
+    assert "姿态误差动画" in html
 
 
 def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):

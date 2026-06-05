@@ -378,11 +378,11 @@ def _parse_list(value) -> list[Any]:
 
 def _render_home() -> str:
     return """<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>satmodel platform</title>
+  <title>satmodel 仿真平台</title>
   <style>
     :root {
       --bg: #f5f7fa;
@@ -399,7 +399,7 @@ def _render_home() -> str:
       margin: 0;
       background: var(--bg);
       color: var(--ink);
-      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
       letter-spacing: 0;
     }
     header {
@@ -479,60 +479,60 @@ def _render_home() -> str:
 </head>
 <body>
   <header>
-    <h1>satmodel Platform</h1>
+    <h1>satmodel 卫星姿态控制仿真平台</h1>
     <div class="path" id="workspace"></div>
   </header>
   <main>
     <div class="grid">
       <div>
         <section>
-          <h2>Scenarios</h2>
+          <h2>场景</h2>
           <div id="scenarios"></div>
         </section>
         <section>
-          <h2>Experiment Plans</h2>
+          <h2>实验计划</h2>
           <div class="toolbar">
-            <button id="refresh">Refresh</button>
-            <input id="output" placeholder="Optional output dir, e.g. results/platform_ui/demo">
+            <button id="refresh">刷新</button>
+            <input id="output" placeholder="可选输出目录，例如 results/platform_ui/demo">
           </div>
           <div id="experiments"></div>
         </section>
         <section>
-          <h2>Dashboards</h2>
+          <h2>结果界面</h2>
           <div id="dashboards"></div>
         </section>
       </div>
       <div>
         <section>
-          <h2>Create Experiment</h2>
+          <h2>创建实验</h2>
           <div class="form-grid">
-            <label class="full">Scenario<select id="builder-scenario"></select></label>
-            <label>Name<input id="builder-name" placeholder="quick_pd_sweep"></label>
-            <label>Output<input id="builder-output" placeholder="results/platform_ui/quick_pd_sweep"></label>
-            <label>Sweep path<input id="builder-sweep-path" value="controller.pd_kp"></label>
-            <label>Sweep values<input id="builder-sweep-values" placeholder="1.2,1.5"></label>
-            <label>MC samples<input id="builder-mc-samples" type="number" min="0" value="0"></label>
-            <label>MC seed<input id="builder-mc-seed" type="number" placeholder="10"></label>
-            <label>Mission<select id="builder-mission"><option value="single_mode">single_mode</option><option value="detumble_then_hold">detumble_then_hold</option></select></label>
-            <label>Mode<input id="builder-mode" value="inertial_hold"></label>
-            <label>Detumble s<input id="builder-detumble" type="number" step="0.1" value="0.5"></label>
-            <label>Reference<input id="builder-reference" value="body_zero"></label>
+            <label class="full">场景<select id="builder-scenario"></select></label>
+            <label>实验名称<input id="builder-name" placeholder="quick_pd_sweep"></label>
+            <label>输出目录<input id="builder-output" placeholder="results/platform_ui/quick_pd_sweep"></label>
+            <label>扫描参数路径<input id="builder-sweep-path" value="controller.pd_kp"></label>
+            <label>扫描取值<input id="builder-sweep-values" placeholder="1.2,1.5"></label>
+            <label>Monte Carlo 样本数<input id="builder-mc-samples" type="number" min="0" value="0"></label>
+            <label>随机种子<input id="builder-mc-seed" type="number" placeholder="10"></label>
+            <label>任务模板<select id="builder-mission"><option value="single_mode">单模式保持</option><option value="detumble_then_hold">消旋后保持</option></select></label>
+            <label>任务模式<input id="builder-mode" value="inertial_hold"></label>
+            <label>消旋时长 s<input id="builder-detumble" type="number" step="0.1" value="0.5"></label>
+            <label>参考目标<input id="builder-reference" value="body_zero"></label>
           </div>
           <div class="toolbar" style="margin-top:10px">
-            <button class="primary" id="create-plan">Create Plan</button>
+            <button class="primary" id="create-plan">创建实验计划</button>
           </div>
         </section>
         <section>
-          <h2>Workspace</h2>
+          <h2>工作区</h2>
           <div class="cards">
-            <div class="card"><span>Scenarios</span><strong id="scenario-count">0</strong></div>
-            <div class="card"><span>Experiments</span><strong id="experiment-count">0</strong></div>
-            <div class="card"><span>Dashboards</span><strong id="dashboard-count">0</strong></div>
+            <div class="card"><span>场景</span><strong id="scenario-count">0</strong></div>
+            <div class="card"><span>实验计划</span><strong id="experiment-count">0</strong></div>
+            <div class="card"><span>结果界面</span><strong id="dashboard-count">0</strong></div>
           </div>
         </section>
         <section>
-          <h2>Status</h2>
-          <div class="status" id="status">Ready.</div>
+          <h2>状态</h2>
+          <div class="status" id="status">就绪。</div>
         </section>
       </div>
     </div>
@@ -556,7 +556,7 @@ def _render_home() -> str:
       status.textContent = text;
     }
     async function load() {
-      setStatus('Loading workspace...');
+      setStatus('正在读取工作区...');
       state.workspace = await api('/api/workspace');
       document.getElementById('workspace').textContent = state.workspace.workspace;
       document.getElementById('scenario-count').textContent = state.workspace.scenarios.length;
@@ -566,7 +566,7 @@ def _render_home() -> str:
       renderScenarios();
       renderDashboards();
       renderBuilder();
-      setStatus('Ready.', 'ok');
+      setStatus('就绪。', 'ok');
     }
     function renderBuilder() {
       const select = document.getElementById('builder-scenario');
@@ -576,48 +576,48 @@ def _render_home() -> str:
     function renderScenarios() {
       const rows = state.workspace.scenarios;
       if (!rows.length) {
-        document.getElementById('scenarios').innerHTML = '<div class="path">No scenario files found in scenarios/.</div>';
+        document.getElementById('scenarios').innerHTML = '<div class="path">scenarios/ 目录下还没有普通场景文件。</div>';
         return;
       }
-      document.getElementById('scenarios').innerHTML = `<table><thead><tr><th>Name</th><th>Timing</th><th>System</th><th>Actions</th></tr></thead><tbody>${rows.map(item => {
+      document.getElementById('scenarios').innerHTML = `<table><thead><tr><th>名称</th><th>时间</th><th>系统</th><th>操作</th></tr></thead><tbody>${rows.map(item => {
         const timing = `${item.duration_s ?? ''} s / dt ${item.dt_s ?? ''}`;
         const system = `${item.system || ''} / ${item.controller || ''}`;
-        return `<tr><td title="${esc(item.path)}">${esc(item.name)}</td><td title="${esc(timing)}">${esc(timing)}</td><td title="${esc(system)}">${esc(system)}</td><td><button onclick="showScenario('${esc(item.path)}')">Details</button> <button onclick="validateScenario('${esc(item.path)}')">Validate</button></td></tr>`;
+        return `<tr><td title="${esc(item.path)}">${esc(item.name)}</td><td title="${esc(timing)}">${esc(timing)}</td><td title="${esc(system)}">${esc(system)}</td><td><button onclick="showScenario('${esc(item.path)}')">详情</button> <button onclick="validateScenario('${esc(item.path)}')">校验</button></td></tr>`;
       }).join('')}</tbody></table>`;
     }
     function renderExperiments() {
       const rows = state.workspace.experiments;
       if (!rows.length) {
-        document.getElementById('experiments').innerHTML = '<div class="path">No experiment plans found in scenarios/.</div>';
+        document.getElementById('experiments').innerHTML = '<div class="path">scenarios/ 目录下还没有实验计划。</div>';
         return;
       }
-      document.getElementById('experiments').innerHTML = `<table><thead><tr><th>Name</th><th>Path</th><th>Runs</th><th>Actions</th></tr></thead><tbody>${rows.map(plan => {
-        const runs = plan.error ? plan.error : `${(plan.sweeps || 0) ? 'sweep' : 'single'} / MC ${plan.monte_carlo_samples || 0}`;
-        return `<tr><td title="${esc(plan.name)}">${esc(plan.name)}</td><td title="${esc(plan.path)}">${esc(plan.path)}</td><td title="${esc(runs)}">${esc(runs)}</td><td><button onclick="validatePlan('${esc(plan.path)}')">Validate</button> <button class="primary" onclick="runPlan('${esc(plan.path)}')">Run</button></td></tr>`;
+      document.getElementById('experiments').innerHTML = `<table><thead><tr><th>名称</th><th>路径</th><th>运行规模</th><th>操作</th></tr></thead><tbody>${rows.map(plan => {
+        const runs = plan.error ? plan.error : `${(plan.sweeps || 0) ? '参数扫描' : '单场景'} / MC ${plan.monte_carlo_samples || 0}`;
+        return `<tr><td title="${esc(plan.name)}">${esc(plan.name)}</td><td title="${esc(plan.path)}">${esc(plan.path)}</td><td title="${esc(runs)}">${esc(runs)}</td><td><button onclick="validatePlan('${esc(plan.path)}')">校验</button> <button class="primary" onclick="runPlan('${esc(plan.path)}')">运行</button></td></tr>`;
       }).join('')}</tbody></table>`;
     }
     function renderDashboards() {
       const rows = state.workspace.dashboards;
       if (!rows.length) {
-        document.getElementById('dashboards').innerHTML = '<div class="path">No dashboards yet. Run an experiment to create one.</div>';
+        document.getElementById('dashboards').innerHTML = '<div class="path">还没有结果界面。运行一次实验后会自动生成。</div>';
         return;
       }
-      document.getElementById('dashboards').innerHTML = `<table><thead><tr><th>Name</th><th>Path</th></tr></thead><tbody>${rows.map(item => `<tr><td>${esc(item.name)}</td><td><a href="${item.url}" target="_blank">${esc(item.path)}</a></td></tr>`).join('')}</tbody></table>`;
+      document.getElementById('dashboards').innerHTML = `<table><thead><tr><th>名称</th><th>路径</th></tr></thead><tbody>${rows.map(item => `<tr><td>${esc(item.name)}</td><td><a href="${item.url}" target="_blank">${esc(item.path)}</a></td></tr>`).join('')}</tbody></table>`;
     }
     async function validatePlan(path) {
       try {
-        setStatus(`Validating ${path}...`);
+        setStatus(`正在校验 ${path}...`);
         const result = await api('/api/validate-experiment', {method:'POST', body: JSON.stringify({path})});
-        setStatus(`Valid: ${result.name}, runs=${result.runs}, scenario=${result.scenario}`, 'ok');
+        setStatus(`实验计划有效：${result.name}，run=${result.runs}，场景=${result.scenario}`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
     }
     async function showScenario(path) {
       try {
-        setStatus(`Loading ${path}...`);
+        setStatus(`正在读取 ${path}...`);
         const result = await api('/api/scenario', {method:'POST', body: JSON.stringify({path})});
-        setStatus(`${result.name}: ${result.duration_s}s, dt=${result.dt_s}, ${result.system}/${result.controller}/${result.environment}, faults=${result.fault_count}`, 'ok');
+        setStatus(`${result.name}：${result.duration_s}s，dt=${result.dt_s}，${result.system}/${result.controller}/${result.environment}，故障=${result.fault_count}`, 'ok');
         document.getElementById('builder-scenario').value = path;
         if (!document.getElementById('builder-name').value) {
           document.getElementById('builder-name').value = `${result.name}_experiment`;
@@ -628,20 +628,20 @@ def _render_home() -> str:
     }
     async function validateScenario(path) {
       try {
-        setStatus(`Validating ${path}...`);
+        setStatus(`正在校验 ${path}...`);
         const result = await api('/api/validate-scenario', {method:'POST', body: JSON.stringify({path})});
-        setStatus(`Scenario valid: ${result.name}, ${result.duration_s}s, dt=${result.dt_s}, ${result.system}/${result.controller}`, 'ok');
+        setStatus(`场景有效：${result.name}，${result.duration_s}s，dt=${result.dt_s}，${result.system}/${result.controller}`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
       }
     }
     async function runPlan(path) {
       try {
-        setStatus(`Running ${path}...`);
+        setStatus(`正在运行 ${path}...`);
         const body = {path};
         if (output.value.trim()) body.output_dir = output.value.trim();
         const result = await api('/api/run-experiment', {method:'POST', body: JSON.stringify(body)});
-        setStatus(`Done: ${result.runs} runs, accepted=${result.accepted}, failed=${result.failed}.`, 'ok');
+        setStatus(`完成：${result.runs} 个 run，通过=${result.accepted}，失败=${result.failed}。`, 'ok');
         await load();
         window.open(result.dashboard_url, '_blank');
       } catch (err) {
@@ -651,7 +651,7 @@ def _render_home() -> str:
     async function createPlan() {
       try {
         const scenario = document.getElementById('builder-scenario').value;
-        if (!scenario) throw new Error('No scenario selected.');
+        if (!scenario) throw new Error('还没有选择场景。');
         const body = {
           scenario_path: scenario,
           name: document.getElementById('builder-name').value || 'generated_experiment',
@@ -666,9 +666,9 @@ def _render_home() -> str:
           detumble_s: Number(document.getElementById('builder-detumble').value || 0.5),
           reference: document.getElementById('builder-reference').value,
         };
-        setStatus(`Creating ${body.name}...`);
+        setStatus(`正在创建 ${body.name}...`);
         const result = await api('/api/create-experiment', {method:'POST', body: JSON.stringify(body)});
-        setStatus(`Created ${result.path}; validation runs=${result.validation.runs}.`, 'ok');
+        setStatus(`已创建 ${result.path}；校验 run=${result.validation.runs}。`, 'ok');
         await load();
       } catch (err) {
         setStatus(err.message, 'bad');

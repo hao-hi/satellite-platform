@@ -118,14 +118,14 @@ satmodel/platform/
 
 当前已新增：
 
-1. `dashboard.html`：实验根目录的静态结果浏览界面，支持 run 筛选、验收状态筛选、指标柱状图、run 表、runtime schedule 和 mode timeline。
-2. `satmodel-build-dashboard OUTPUT_DIR`：为已有实验目录补建静态界面。
-3. `satmodel-platform-ui`：本地浏览器控制台，支持发现 `scenarios/` 下的场景和实验计划、查看和校验场景、从场景生成新实验计划、校验计划、运行实验并打开结果 dashboard。
+1. `dashboard.html`：实验根目录的中文静态结果浏览界面，支持 run 筛选、验收状态筛选、指标柱状图、run 表、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。
+2. `satmodel-build-dashboard OUTPUT_DIR`：为已有实验目录补建带仿真结果图的静态界面。
+3. `satmodel-platform-ui`：中文本地浏览器控制台，支持发现 `scenarios/` 下的场景和实验计划、查看和校验场景、从场景生成新实验计划、校验计划、运行实验并打开结果 dashboard。
 
 后续计划：
 
-1. 姿态误差、轮速、扰动力矩预算、模式时间线和控制诊断图。
-2. 三维姿态回放和 mission timeline 回放。
+1. 轮速、扰动力矩预算、模式时间线和控制诊断图的更完整对比视图。
+2. 更高保真的三维姿态回放和 mission timeline 回放。
 3. 实验数据库、结果 schema 版本、迁移策略、变更日志和发布流程。
 4. CI、安装后 smoke test、构建检查和示例实验回归。
 
@@ -152,7 +152,7 @@ satmodel/platform/
 | `experiment_manifest.json` | 平台实验 manifest，记录实验计划、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和 run 摘要。 |
 | `runtime_schedule.json` | 可选产物；当计划包含 runtime 时，记录 process/task/module 展开的确定性事件列表。 |
 | `mode_timeline.json` | 可选产物；当计划包含 mission 时，记录任务步骤、模式区间和参考切换。 |
-| `dashboard.html` | 静态结果浏览界面，可直接打开查看指标、run、验收状态、runtime schedule 和 mode timeline。 |
+| `dashboard.html` | 中文静态结果浏览界面，可直接打开查看指标、run、验收状态、姿态误差动画、仿真时序结果图、runtime schedule 和 mode timeline。 |
 
 ## 使用入口
 

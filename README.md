@@ -248,7 +248,7 @@ satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quic
 
 实验计划支持轻量模板简写，例如 `"runtime": {"template": "single_rate"}` 会按场景 `dt_s` 生成与当前 `ScenarioRunner.step` 对齐的单速率模块顺序，`"mission": {"template": "detumble_then_hold", ...}` 会生成消旋到指向保持的模式时间线。
 
-实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和所有 run 摘要；同时生成可直接打开的 `dashboard.html`，用于筛选 run、查看指标图、验收状态、runtime schedule 和 mode timeline。
+实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和所有 run 摘要；同时生成可直接打开的中文 `dashboard.html`，用于筛选 run、查看验收状态、指标图、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。
 
 已有实验目录也可以单独补建界面：
 
@@ -262,7 +262,7 @@ satmodel-build-dashboard results/quick_pd_experiment
 satmodel-platform-ui --open
 ```
 
-控制台会发现 `scenarios/` 下的场景和实验计划，支持查看和校验场景、从场景生成新的实验计划、校验计划、运行实验，并自动打开生成的 `dashboard.html`。
+中文控制台会发现 `scenarios/` 下的场景和实验计划，支持查看和校验场景、从场景生成新的实验计划、校验计划、运行实验，并自动打开带动画和仿真结果图的 `dashboard.html`。
 
 后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
 
