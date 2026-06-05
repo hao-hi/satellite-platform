@@ -7,8 +7,11 @@ from satmodel import (
     RuntimeModule,
     RuntimeProcess,
     RuntimeTask,
+    detumble_then_hold_mission,
     mission_sequence_from_mapping,
     runtime_process_from_mapping,
+    single_mode_mission,
+    single_rate_runtime_process,
 )
 
 
@@ -87,6 +90,24 @@ def test_runtime_task_time_window_and_disabled_modules():
     ]
 
 
+def test_single_rate_runtime_template_preserves_scenario_step_order():
+    process = single_rate_runtime_process(0.1, recorder_period_s=0.2)
+    schedule = process.schedule(0.2)
+    first_step = [event["module"] for event in schedule if event["time_s"] == 0.0]
+
+    assert first_step == [
+        "environment",
+        "disturbance_model",
+        "sensor_suite",
+        "estimator",
+        "controller",
+        "actuator",
+        "dynamics",
+        "recorder",
+    ]
+    assert [event["time_s"] for event in schedule if event["module"] == "recorder"] == [0.0, 0.2]
+
+
 def test_mission_sequence_mode_timeline_queries_modes():
     sequence = mission_sequence_from_mapping(
         {
@@ -114,6 +135,16 @@ def test_mission_sequence_mode_timeline_queries_modes():
     assert sequence.active_step_at(12.0).reference == "nadir"
 
 
+def test_mission_templates_cover_nominal_modes():
+    safe = single_mode_mission("safe", 5.0)
+    sequence = detumble_then_hold_mission(10.0, detumble_s=2.5, hold_mode="sun_pointing", reference="sun")
+
+    assert safe.mode_timeline().mode_at(4.0) == "safe"
+    assert sequence.mode_timeline().mode_at(1.0) == "detumble"
+    assert sequence.mode_timeline().mode_at(3.0) == "sun_pointing"
+    assert sequence.active_step_at(3.0).reference == "sun"
+
+
 def test_mission_sequence_rejects_overlaps_and_unknown_fields():
     with pytest.raises(ValueError, match="unknown mission step"):
         mission_sequence_from_mapping(
@@ -129,7 +160,15 @@ def test_mission_sequence_rejects_overlaps_and_unknown_fields():
             {
                 "steps": [
                     {"name": "a", "start_s": 0.0, "stop_s": 2.0, "mode": "detumble"},
-                    {"name": "b", "start_s": 1.0, "stop_s": 3.0, "mode": "hold"},
+                    {"name": "b", "start_s": 1.0, "stop_s": 3.0, "mode": "inertial_hold"},
                 ]
             }
         )
+
+
+def test_mission_sequence_rejects_unknown_modes():
+    with pytest.raises(ValueError, match="unsupported mission mode"):
+        single_mode_mission("invented_mode", 1.0)
+
+    with pytest.raises(ValueError, match="detumble_s is required"):
+        mission_sequence_from_mapping({"template": "detumble_then_hold", "duration_s": 5.0})

@@ -246,6 +246,8 @@ satmodel-validate-experiment scenarios/quick_pd_experiment.json
 satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
 ```
 
+实验计划支持轻量模板简写，例如 `"runtime": {"template": "single_rate"}` 会按场景 `dt_s` 生成与当前 `ScenarioRunner.step` 对齐的单速率模块顺序，`"mission": {"template": "detumble_then_hold", ...}` 会生成消旋到指向保持的模式时间线。
+
 实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和所有 run 摘要。旧的 `satmodel-run-scenario` 和 Python `StudyRunner` 仍可用，它们内部会委托到新的平台层。
 
 后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。

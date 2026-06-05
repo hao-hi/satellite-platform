@@ -254,7 +254,7 @@ outputs:
 平台化后续阶段按成熟项目范式推进：
 
 - v0.3 平台架构收敛：`satmodel.platform` 已拆成 `plan.py`、`runner.py`、`records.py`、`reporting.py` 和 `project.py`，`core.py` 仅作为兼容转发入口。
-- v0.4 运行时与任务序列：已引入 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule`、`MissionSequence` 和 `ModeTimeline` 的轻量骨架，先作为正常任务流程、多速率调度和参考/模式切换的描述与验证层。
+- v0.4 运行时与任务序列：已引入 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule`、`MissionSequence` 和 `ModeTimeline` 的轻量骨架，并提供 `single_rate`、`single_mode` 和 `detumble_then_hold` 模板，先作为正常任务流程、多速率调度和参考/模式切换的描述与验证层。
 - v0.5 高保真建模：按 environment setup、propagation setup、spacecraft model、actuator model、sensor model 分层升级。
 - v0.6 可视化和产品化：实验数据库、结果浏览、run 对比、三维回放、发布流程和 schema 迁移。
 

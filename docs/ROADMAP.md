@@ -57,12 +57,13 @@
 3. `MissionSequence`、`MissionStep`、`ModeTimeline`：参考 GMAT 的 mission sequence 思想，描述实验步骤、参考切换、控制模式切换和运行区间。
 4. 严格 mapping 解析：`runtime_process_from_mapping()`、`mission_sequence_from_mapping()` 拒绝未知字段，便于后续配置 schema 收敛。
 5. `ExperimentPlan` 已支持可选 `runtime` 和 `mission` 字段；实验根目录可生成 `runtime_schedule.json` 和 `mode_timeline.json`。
+6. 已新增 `single_rate` runtime 模板和 `single_mode`、`detumble_then_hold` mission 模板，覆盖 detumble、inertial hold、sun pointing、earth pointing 和 safe 模式。
 
 下一步交付：
 
-1. 在等频配置下验证新调度器与当前 `ScenarioRunner` 的执行语义一致。
-2. 再扩展 detumble、inertial hold、sun pointing、earth pointing、安全模式等任务模式模板。
-3. 将 runtime schedule 和 mode timeline 接入后续图形报告、回放和实验浏览器。
+1. 将 runtime schedule 和 mode timeline 接入后续图形报告、回放和实验浏览器。
+2. 在真正替换底层执行器前，继续用等频模板回归验证与当前 `ScenarioRunner` 的语义一致性。
+3. 扩展 mission event，用于后续故障、降额、丢包等任务事件。
 
 优先级说明：本阶段服务正常任务流程和调度，不把故障注入作为主需求；故障和降额可以作为 mission event 的后续扩展。
 

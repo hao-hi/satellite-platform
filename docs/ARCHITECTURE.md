@@ -120,7 +120,7 @@ ScenarioSpec
     -> Report / Replay
 ```
 
-`RuntimeProcess.schedule(duration_s)` 会先把 process/task/module 展开为确定性的事件列表。多速率调度器应以当前单步数据流作为语义基线；等频配置下，动力学、传感器、估计器、控制器、执行器和记录顺序应保持可解释的一致性。
+`RuntimeProcess.schedule(duration_s)` 会先把 process/task/module 展开为确定性的事件列表。`single_rate` runtime 模板按当前 `ScenarioRunner.step` 顺序生成 environment、disturbance、sensor、estimator、controller、actuator、dynamics 和 recorder 事件。多速率调度器应以当前单步数据流作为语义基线；等频配置下，动力学、传感器、估计器、控制器、执行器和记录顺序应保持可解释的一致性。
 
 `ExperimentPlan` 已可选携带 runtime 和 mission 描述。当前 runner 不用它们替换物理执行路径，但会把它们写入 `experiment_manifest.json`，并额外生成 `runtime_schedule.json` 和 `mode_timeline.json`，供后续报告、回放和可视化读取。
 

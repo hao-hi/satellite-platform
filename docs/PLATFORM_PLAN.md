@@ -89,12 +89,15 @@ satmodel/platform/
 3. `RuntimeModule`：传感器、估计器、控制器、执行机构、记录器等可调度模块。
 4. `MissionSequence`：描述仿真任务步骤、参考切换和模式切换。
 5. `ModeTimeline`：可按时间查询 detumble、惯性定向、对日、对地、安全模式等模式区间。
+6. `single_rate` runtime 模板：按当前 `ScenarioRunner.step` 顺序生成 environment、disturbance、sensor、estimator、controller、actuator、dynamics、recorder 事件。
+7. `single_mode` 和 `detumble_then_hold` mission 模板：用少量字段生成常见任务模式时间线。
 
 当前边界：
 
 1. 新 runtime/mission 类型先作为描述和验证层，不替换 `ScenarioRunner` 的物理执行路径。
 2. `ExperimentPlan` 支持可选 runtime 和 mission 字段；旧计划文件无需修改即可继续运行。
 3. 当实验计划包含 runtime 或 mission 时，实验根目录会生成 `runtime_schedule.json` 和 `mode_timeline.json`，并在 `index.json` 与 README 中建立索引。
+4. 模板简写会自动使用场景 `dt_s` 和 `duration_s`，避免用户重复维护调度步长和任务时长。
 
 本阶段优先服务正常任务流程和多速率调度；故障注入、丢包、降额可以后续作为 mission event 扩展。
 
@@ -200,6 +203,7 @@ result = ScenarioRunner(system).run(SimulationConfig(duration=5.0, dt=0.02))
 3. `Add runtime skeleton`：已新增 RuntimeProcess/RuntimeTask/RuntimeModule 只读骨架和文档。
 4. `Add mission sequence skeleton`：已新增 MissionSequence/ModeTimeline 的配置和验证。
 5. `Connect runtime manifests`：已把 runtime schedule 和 mode timeline 写入实验级结果产物。
-6. `Add high-fidelity model adapters`：按环境、传播、执行机构、传感器逐步扩展。
+6. `Add runtime mission templates`：已新增 `single_rate`、`single_mode` 和 `detumble_then_hold` 模板。
+7. `Add high-fidelity model adapters`：按环境、传播、执行机构、传感器逐步扩展。
 
 每一步都应运行测试，并避免把平台架构、高保真物理模型和可视化产品化混在同一个提交里。

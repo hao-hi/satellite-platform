@@ -97,9 +97,9 @@ class ExperimentPlan:
         if self.monte_carlo is not None and any(sweep.path == self.monte_carlo.path for sweep in self.sweeps):
             raise ValueError(f"cannot sweep and Monte Carlo over the same path: {self.monte_carlo.path}")
         if self.runtime is not None and not isinstance(self.runtime, RuntimeProcess):
-            self.runtime = runtime_process_from_mapping(self.runtime)
+            self.runtime = runtime_from_plan_value(self.runtime, self.scenario)
         if self.mission is not None and not isinstance(self.mission, MissionSequence):
-            self.mission = mission_sequence_from_mapping(self.mission)
+            self.mission = mission_from_plan_value(self.mission, self.scenario)
         if not isinstance(self.outputs, ExperimentOutputSpec):
             self.outputs = ExperimentOutputSpec(**dict(self.outputs))
         self.acceptance = dict(self.acceptance)
@@ -161,8 +161,8 @@ def experiment_plan_from_mapping(values: dict[str, Any], *, base_dir: str | Path
         scenario=scenario,
         sweeps=tuple(sweep_from_mapping(item) for item in data.get("sweeps", ())),
         monte_carlo=None if data.get("monte_carlo") is None else monte_carlo_from_mapping(data["monte_carlo"]),
-        runtime=None if data.get("runtime") is None else runtime_process_from_mapping(data["runtime"]),
-        mission=None if data.get("mission") is None else mission_sequence_from_mapping(data["mission"]),
+        runtime=None if data.get("runtime") is None else runtime_from_plan_value(data["runtime"], scenario),
+        mission=None if data.get("mission") is None else mission_from_plan_value(data["mission"], scenario),
         outputs=ExperimentOutputSpec(**dict(data.get("outputs", {}))),
         acceptance=dict(data.get("acceptance", {})),
     )
@@ -214,3 +214,25 @@ def monte_carlo_from_mapping(value) -> ExperimentMonteCarloSpec:
         return value
     data = dict(value)
     return ExperimentMonteCarloSpec(data["samples"], seed=data.get("seed"), path=data.get("path", "time.seed"))
+
+
+def runtime_from_plan_value(value, scenario: ScenarioSpec) -> RuntimeProcess:
+    if isinstance(value, RuntimeProcess):
+        return value
+    if isinstance(value, str):
+        return runtime_process_from_mapping({"template": value, "dt_s": scenario.time.dt_s})
+    data = dict(value)
+    if "template" in data and "dt_s" not in data:
+        data["dt_s"] = scenario.time.dt_s
+    return runtime_process_from_mapping(data)
+
+
+def mission_from_plan_value(value, scenario: ScenarioSpec) -> MissionSequence:
+    if isinstance(value, MissionSequence):
+        return value
+    if isinstance(value, str):
+        return mission_sequence_from_mapping({"template": "single_mode", "mode": value, "duration_s": scenario.time.duration_s})
+    data = dict(value)
+    if "template" in data and "duration_s" not in data:
+        data["duration_s"] = scenario.time.duration_s
+    return mission_sequence_from_mapping(data)

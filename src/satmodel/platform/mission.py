@@ -8,6 +8,16 @@ from typing import Any
 from satmodel.platform.runtime import _non_negative_seconds, _positive_seconds
 from satmodel.platform.utils import reject_unknown
 
+SUPPORTED_MISSION_MODES = frozenset(
+    {
+        "detumble",
+        "inertial_hold",
+        "sun_pointing",
+        "earth_pointing",
+        "safe",
+    }
+)
+
 
 @dataclass(frozen=True)
 class MissionStep:
@@ -31,6 +41,8 @@ class MissionStep:
             raise ValueError("mission step name must be non-empty")
         if not self.mode:
             raise ValueError("mission step mode must be non-empty")
+        if self.mode not in SUPPORTED_MISSION_MODES:
+            raise ValueError(f"unsupported mission mode: {self.mode}")
         if self.stop_s <= self.start_s:
             raise ValueError("mission step stop_s must be greater than start_s")
 
@@ -134,10 +146,90 @@ def mission_step_from_mapping(value) -> MissionStep:
     )
 
 
+def single_mode_mission(
+    mode: str,
+    duration_s: float,
+    *,
+    name: str | None = None,
+    reference: str | None = None,
+) -> MissionSequence:
+    """Build a one-step mission sequence for a normal pointing or safe mode."""
+
+    duration = _positive_seconds("single-mode mission duration_s", duration_s)
+    mode_name = str(mode)
+    step_name = str(name or mode_name)
+    return MissionSequence(
+        steps=(
+            MissionStep(
+                name=step_name,
+                start_s=0.0,
+                stop_s=duration,
+                mode=mode_name,
+                reference=reference,
+            ),
+        ),
+        metadata={"template": "single_mode", "mode": mode_name},
+    )
+
+
+def detumble_then_hold_mission(
+    duration_s: float,
+    *,
+    detumble_s: float,
+    hold_mode: str = "inertial_hold",
+    reference: str | None = None,
+) -> MissionSequence:
+    """Build a common detumble-to-pointing mission sequence."""
+
+    duration = _positive_seconds("detumble mission duration_s", duration_s)
+    detumble = _positive_seconds("detumble_s", detumble_s)
+    if detumble >= duration:
+        raise ValueError("detumble_s must be less than duration_s")
+    return MissionSequence(
+        steps=(
+            MissionStep("detumble", start_s=0.0, stop_s=detumble, mode="detumble"),
+            MissionStep(
+                hold_mode,
+                start_s=detumble,
+                stop_s=duration,
+                mode=hold_mode,
+                reference=reference,
+            ),
+        ),
+        metadata={"template": "detumble_then_hold", "detumble_s": detumble, "hold_mode": hold_mode},
+    )
+
+
 def mission_sequence_from_mapping(value) -> MissionSequence:
     if isinstance(value, MissionSequence):
         return value
     data = dict(value)
+    if "template" in data:
+        reject_unknown(
+            "mission template",
+            data,
+            {"template", "duration_s", "mode", "name", "reference", "detumble_s", "hold_mode"},
+        )
+        template = str(data["template"])
+        if "duration_s" not in data:
+            raise ValueError("mission template duration_s is required")
+        if template == "single_mode":
+            return single_mode_mission(
+                data.get("mode", "inertial_hold"),
+                data["duration_s"],
+                name=data.get("name"),
+                reference=data.get("reference"),
+            )
+        if template == "detumble_then_hold":
+            if "detumble_s" not in data:
+                raise ValueError("detumble_then_hold mission template detumble_s is required")
+            return detumble_then_hold_mission(
+                data["duration_s"],
+                detumble_s=data["detumble_s"],
+                hold_mode=data.get("hold_mode", "inertial_hold"),
+                reference=data.get("reference"),
+            )
+        raise ValueError(f"unknown mission template: {template}")
     reject_unknown("mission sequence", data, {"steps", "metadata"})
     return MissionSequence(
         steps=tuple(mission_step_from_mapping(item) for item in data.get("steps", ())),

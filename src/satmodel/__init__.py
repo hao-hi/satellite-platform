@@ -100,6 +100,8 @@ from satmodel.platform import (
     RuntimeModule,
     RuntimeProcess,
     RuntimeTask,
+    SUPPORTED_MISSION_MODES,
+    detumble_then_hold_mission,
     experiment_plan_from_mapping,
     load_experiment_plan,
     mission_sequence_from_mapping,
@@ -107,6 +109,8 @@ from satmodel.platform import (
     runtime_module_from_mapping,
     runtime_process_from_mapping,
     runtime_task_from_mapping,
+    single_mode_mission,
+    single_rate_runtime_process,
 )
 from satmodel.sensors import AttitudeSensor, GyroSensor, SensorSuite
 from satmodel.system import SatelliteSystem, ScenarioRunner, build_cubesat_reaction_wheel_system, build_default_system
@@ -200,6 +204,7 @@ __all__ = [
     "RuntimeModule",
     "RuntimeProcess",
     "RuntimeTask",
+    "SUPPORTED_MISSION_MODES",
     "SatelliteSystem",
     "ScenarioInitialStateSpec",
     "ScenarioMetadata",
@@ -237,6 +242,7 @@ __all__ = [
     "build_demo_leo_environment",
     "compile_scenario",
     "default_leo_disturbance_effectors",
+    "detumble_then_hold_mission",
     "experiment_plan_from_mapping",
     "build_inertia_regression_matrix",
     "cubesat_demo_mass_properties",
@@ -250,5 +256,7 @@ __all__ = [
     "runtime_task_from_mapping",
     "scenario_from_mapping",
     "scenario_to_mapping",
+    "single_mode_mission",
+    "single_rate_runtime_process",
     "uniform_box_inertia",
 ]

@@ -387,6 +387,36 @@ def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
     assert "`mode_timeline.json`" in readme
 
 
+def test_experiment_plan_runtime_and_mission_templates_use_scenario_timing(tmp_path):
+    output = tmp_path / "template-runtime-mission"
+    plan = {
+        "schema_version": 1,
+        "metadata": {"name": "template_runtime_mission"},
+        "scenario": _scenario_mapping(tmp_path / "ignored"),
+        "runtime": {"template": "single_rate"},
+        "mission": {
+            "template": "detumble_then_hold",
+            "detumble_s": 0.2,
+            "hold_mode": "earth_pointing",
+            "reference": "nadir",
+        },
+        "outputs": {"root": str(output)},
+    }
+
+    ExperimentRunner(plan).run()
+    manifest = json.loads((output / "experiment_manifest.json").read_text(encoding="utf-8"))
+    schedule = json.loads((output / "runtime_schedule.json").read_text(encoding="utf-8"))
+    timeline = json.loads((output / "mode_timeline.json").read_text(encoding="utf-8"))
+
+    assert manifest["experiment"]["runtime"]["metadata"]["template"] == "single_rate"
+    assert manifest["experiment"]["runtime"]["metadata"]["dt_s"] == 0.05
+    assert schedule["duration_s"] == 0.4
+    assert schedule["events"][0]["module"] == "environment"
+    assert timeline["duration_s"] == 0.4
+    assert timeline["timeline"][1]["mode"] == "earth_pointing"
+    assert timeline["timeline"][1]["reference"] == "nadir"
+
+
 def test_experiment_plan_loads_relative_scenario_path(tmp_path):
     scenario_path = tmp_path / "scenario.json"
     plan_path = tmp_path / "plan.json"

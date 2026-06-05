@@ -138,43 +138,78 @@ class RuntimeProcess:
         """Expand enabled tasks/modules into a deterministic event list."""
 
         duration = _non_negative_seconds("runtime duration_s", duration_s)
-        events: list[dict[str, Any]] = []
-        for task in self.tasks:
+        scheduled: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+        for task_index, task in enumerate(self.tasks):
             if not task.enabled:
                 continue
             task_stop = min(duration, duration if task.stop_s is None else task.stop_s)
-            for module in task.modules:
+            for module_index, module in enumerate(task.modules):
                 if not module.enabled:
                     continue
                 period = module.update_period_s or task.update_period_s
                 time_s = task.start_s
                 step_index = 0
                 while time_s <= task_stop + 1e-12:
-                    events.append(
-                        {
-                            "time_s": round(time_s, 12),
-                            "process": self.name,
-                            "task": task.name,
-                            "module": module.name,
-                            "role": module.role,
-                            "process_priority": self.priority,
-                            "task_priority": task.priority,
-                            "module_priority": module.priority,
-                        }
+                    event = {
+                        "time_s": round(time_s, 12),
+                        "process": self.name,
+                        "task": task.name,
+                        "module": module.name,
+                        "role": module.role,
+                        "process_priority": self.priority,
+                        "task_priority": task.priority,
+                        "module_priority": module.priority,
+                    }
+                    scheduled.append(
+                        (
+                            (
+                                event["time_s"],
+                                -self.priority,
+                                -task.priority,
+                                task_index,
+                                -module.priority,
+                                module_index,
+                            ),
+                            event,
+                        )
                     )
                     step_index += 1
                     time_s = task.start_s + step_index * period
-        return sorted(
-            events,
-            key=lambda item: (
-                item["time_s"],
-                -item["process_priority"],
-                -item["task_priority"],
-                -item["module_priority"],
-                item["task"],
-                item["module"],
+        return [event for _key, event in sorted(scheduled, key=lambda item: item[0])]
+
+
+def single_rate_runtime_process(
+    dt_s: float,
+    *,
+    name: str = "single_rate_flight",
+    task_name: str = "attitude_step",
+    recorder_period_s: float | None = None,
+) -> RuntimeProcess:
+    """Build a single-rate process matching the current ScenarioRunner step order."""
+
+    dt = _positive_seconds("single-rate runtime dt_s", dt_s)
+    recorder_period = dt if recorder_period_s is None else _positive_seconds("single-rate recorder_period_s", recorder_period_s)
+    return RuntimeProcess(
+        name,
+        tasks=(
+            RuntimeTask(
+                task_name,
+                update_period_s=dt,
+                modules=(
+                    RuntimeModule("environment", role="environment"),
+                    RuntimeModule("disturbance_model", role="disturbance"),
+                    RuntimeModule("sensor_suite", role="sensor"),
+                    RuntimeModule("estimator", role="estimator"),
+                    RuntimeModule("controller", role="controller"),
+                    RuntimeModule("actuator", role="actuator"),
+                    RuntimeModule("dynamics", role="propagator"),
+                    RuntimeModule("recorder", role="recorder", update_period_s=recorder_period),
+                ),
+                metadata={"semantic_baseline": "ScenarioRunner.step"},
             ),
-        )
+        ),
+        metadata={"template": "single_rate", "dt_s": dt},
+    )
 
 
 def runtime_module_from_mapping(value) -> RuntimeModule:
@@ -213,6 +248,19 @@ def runtime_process_from_mapping(value) -> RuntimeProcess:
     if isinstance(value, RuntimeProcess):
         return value
     data = dict(value)
+    if "template" in data:
+        reject_unknown("runtime template", data, {"template", "dt_s", "name", "task_name", "recorder_period_s"})
+        template = str(data["template"])
+        if template != "single_rate":
+            raise ValueError(f"unknown runtime template: {template}")
+        if "dt_s" not in data:
+            raise ValueError("runtime template dt_s is required")
+        return single_rate_runtime_process(
+            data["dt_s"],
+            name=data.get("name", "single_rate_flight"),
+            task_name=data.get("task_name", "attitude_step"),
+            recorder_period_s=data.get("recorder_period_s"),
+        )
     reject_unknown("runtime process", data, {"name", "tasks", "priority", "metadata"})
     return RuntimeProcess(
         name=data["name"],
