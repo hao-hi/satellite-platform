@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from satmodel.config import ScenarioSpec, load_scenario, scenario_from_mapping, scenario_to_mapping
+from satmodel.platform.mission import MissionSequence, mission_sequence_from_mapping
+from satmodel.platform.runtime import RuntimeProcess, runtime_process_from_mapping
 from satmodel.platform.utils import reject_unknown
 
 
@@ -77,6 +79,8 @@ class ExperimentPlan:
     scenario: ScenarioSpec = field(default_factory=ScenarioSpec)
     sweeps: tuple[ExperimentSweepSpec, ...] = ()
     monte_carlo: ExperimentMonteCarloSpec | None = None
+    runtime: RuntimeProcess | None = None
+    mission: MissionSequence | None = None
     outputs: ExperimentOutputSpec = field(default_factory=ExperimentOutputSpec)
     acceptance: dict[str, Any] = field(default_factory=dict)
 
@@ -92,6 +96,10 @@ class ExperimentPlan:
             self.monte_carlo = monte_carlo_from_mapping(self.monte_carlo)
         if self.monte_carlo is not None and any(sweep.path == self.monte_carlo.path for sweep in self.sweeps):
             raise ValueError(f"cannot sweep and Monte Carlo over the same path: {self.monte_carlo.path}")
+        if self.runtime is not None and not isinstance(self.runtime, RuntimeProcess):
+            self.runtime = runtime_process_from_mapping(self.runtime)
+        if self.mission is not None and not isinstance(self.mission, MissionSequence):
+            self.mission = mission_sequence_from_mapping(self.mission)
         if not isinstance(self.outputs, ExperimentOutputSpec):
             self.outputs = ExperimentOutputSpec(**dict(self.outputs))
         self.acceptance = dict(self.acceptance)
@@ -118,6 +126,10 @@ class ExperimentPlan:
         }
         if self.monte_carlo is not None:
             payload["monte_carlo"] = self.monte_carlo.to_mapping()
+        if self.runtime is not None:
+            payload["runtime"] = self.runtime.to_mapping()
+        if self.mission is not None:
+            payload["mission"] = self.mission.to_mapping()
         return payload
 
 
@@ -125,7 +137,11 @@ def experiment_plan_from_mapping(values: dict[str, Any], *, base_dir: str | Path
     """Build a strict experiment plan from a plain mapping."""
 
     data = dict(values)
-    reject_unknown("experiment", data, {"schema_version", "metadata", "scenario", "sweeps", "monte_carlo", "outputs", "acceptance"})
+    reject_unknown(
+        "experiment",
+        data,
+        {"schema_version", "metadata", "scenario", "sweeps", "monte_carlo", "runtime", "mission", "outputs", "acceptance"},
+    )
     if "metadata" in data:
         reject_unknown("metadata", dict(data["metadata"]), {"name", "description", "tags"})
     if "outputs" in data:
@@ -145,6 +161,8 @@ def experiment_plan_from_mapping(values: dict[str, Any], *, base_dir: str | Path
         scenario=scenario,
         sweeps=tuple(sweep_from_mapping(item) for item in data.get("sweeps", ())),
         monte_carlo=None if data.get("monte_carlo") is None else monte_carlo_from_mapping(data["monte_carlo"]),
+        runtime=None if data.get("runtime") is None else runtime_process_from_mapping(data["runtime"]),
+        mission=None if data.get("mission") is None else mission_sequence_from_mapping(data["mission"]),
         outputs=ExperimentOutputSpec(**dict(data.get("outputs", {}))),
         acceptance=dict(data.get("acceptance", {})),
     )

@@ -93,8 +93,8 @@ satmodel/platform/
 当前边界：
 
 1. 新 runtime/mission 类型先作为描述和验证层，不替换 `ScenarioRunner` 的物理执行路径。
-2. `ExperimentPlan` 暂不强制包含 runtime 或 mission 字段，避免破坏 v0.3 plan schema。
-3. 后续小迭代再把 runtime manifest、mode timeline 和调度结果写入实验级报告。
+2. `ExperimentPlan` 支持可选 runtime 和 mission 字段；旧计划文件无需修改即可继续运行。
+3. 当实验计划包含 runtime 或 mission 时，实验根目录会生成 `runtime_schedule.json` 和 `mode_timeline.json`，并在 `index.json` 与 README 中建立索引。
 
 本阶段优先服务正常任务流程和多速率调度；故障注入、丢包、降额可以后续作为 mission event 扩展。
 
@@ -141,7 +141,9 @@ satmodel/platform/
 | `index.json` | 面向平台浏览和可视化的机器可读索引。 |
 | `summary_metrics.csv` | 所有 run 的指标、参数列、系统选择、验收结果和输出目录。 |
 | `study_manifest.json` | v0.2 兼容 manifest。 |
-| `experiment_manifest.json` | v0.3 平台实验 manifest，记录实验计划、场景、扫描/Monte Carlo 设置和 run 摘要。 |
+| `experiment_manifest.json` | 平台实验 manifest，记录实验计划、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和 run 摘要。 |
+| `runtime_schedule.json` | 可选产物；当计划包含 runtime 时，记录 process/task/module 展开的确定性事件列表。 |
+| `mode_timeline.json` | 可选产物；当计划包含 mission 时，记录任务步骤、模式区间和参考切换。 |
 
 ## 使用入口
 
@@ -197,7 +199,7 @@ result = ScenarioRunner(system).run(SimulationConfig(duration=5.0, dt=0.02))
 2. `Modularize platform package`：把当前 `platform.core` 拆为 plan/runner/records/reporting/project。
 3. `Add runtime skeleton`：已新增 RuntimeProcess/RuntimeTask/RuntimeModule 只读骨架和文档。
 4. `Add mission sequence skeleton`：已新增 MissionSequence/ModeTimeline 的配置和验证。
-5. `Connect runtime manifests`：把 runtime schedule 和 mode timeline 写入实验级结果产物。
+5. `Connect runtime manifests`：已把 runtime schedule 和 mode timeline 写入实验级结果产物。
 6. `Add high-fidelity model adapters`：按环境、传播、执行机构、传感器逐步扩展。
 
 每一步都应运行测试，并避免把平台架构、高保真物理模型和可视化产品化混在同一个提交里。

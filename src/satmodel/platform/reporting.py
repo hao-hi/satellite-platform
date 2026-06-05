@@ -109,6 +109,8 @@ class ReportBuilder:
         path = self.summary.output_dir / filename
         acceptance = self.acceptance_summary()
         best = self.best_row()
+        runtime_file = "runtime_schedule.json" if self._has_runtime() else None
+        mode_file = "mode_timeline.json" if self._has_mission() else None
         payload = {
             "index_version": 1,
             "created_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -118,6 +120,8 @@ class ReportBuilder:
             "best_output_dir": None if best is None else best.get("output_dir"),
             "metric_columns": self.metric_columns(),
             "parameter_columns": self.parameter_columns(),
+            "runtime_schedule": runtime_file,
+            "mode_timeline": mode_file,
             "runs": self.summary.rows,
         }
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
@@ -183,17 +187,62 @@ class ReportBuilder:
                 "- `index.json`: compact machine-readable experiment index.",
             ]
         )
+        if self._has_runtime():
+            lines.append("- `runtime_schedule.json`: expanded process/task/module schedule.")
+        if self._has_mission():
+            lines.append("- `mode_timeline.json`: mission step and mode intervals.")
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return path
 
+    def write_runtime_schedule(self, filename: str = "runtime_schedule.json") -> Path:
+        path = self.summary.output_dir / filename
+        plan = self.summary.plan
+        runtime = None if plan is None else plan.runtime
+        if runtime is None:
+            raise ValueError("experiment plan has no runtime process")
+        schedule = runtime.schedule(plan.scenario.time.duration_s)
+        payload = {
+            "schedule_version": 1,
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "satmodel_version": __version__,
+            "duration_s": plan.scenario.time.duration_s,
+            "runtime": runtime.to_mapping(),
+            "event_count": len(schedule),
+            "events": schedule,
+        }
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+        return path
+
+    def write_mode_timeline(self, filename: str = "mode_timeline.json") -> Path:
+        path = self.summary.output_dir / filename
+        plan = self.summary.plan
+        mission = None if plan is None else plan.mission
+        if mission is None:
+            raise ValueError("experiment plan has no mission sequence")
+        payload = {
+            "timeline_version": 1,
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "satmodel_version": __version__,
+            "duration_s": mission.duration_s,
+            "mission": mission.to_mapping(),
+            "timeline": mission.mode_timeline().to_mapping(),
+        }
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+        return path
+
     def write_outputs(self) -> dict[str, Path]:
-        return {
+        outputs = {
             "summary_metrics": self.write_metrics_csv(),
             "study_manifest": self.write_study_manifest(),
             "experiment_manifest": self.write_experiment_manifest(),
-            "index": self.write_index(),
-            "report": self.write_markdown(),
         }
+        if self._has_runtime():
+            outputs["runtime_schedule"] = self.write_runtime_schedule()
+        if self._has_mission():
+            outputs["mode_timeline"] = self.write_mode_timeline()
+        outputs["index"] = self.write_index()
+        outputs["report"] = self.write_markdown()
+        return outputs
 
     def _fieldnames(self) -> list[str]:
         names: list[str] = []
@@ -202,6 +251,12 @@ class ReportBuilder:
                 if key not in names:
                     names.append(key)
         return names
+
+    def _has_runtime(self) -> bool:
+        return self.summary.plan is not None and self.summary.plan.runtime is not None
+
+    def _has_mission(self) -> bool:
+        return self.summary.plan is not None and self.summary.plan.mission is not None
 
     @staticmethod
     def _cell(value) -> str | int | float:

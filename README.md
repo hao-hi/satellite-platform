@@ -179,7 +179,7 @@ print(result.metrics(config.reference))
 
 ## 轻量平台入口
 
-`v0.2` 平台化入口保留原有 `ScenarioRunner` 用法，同时增加配置驱动的场景和实验运行器。下面的例子会生成 run 级 `manifest.json`、`metrics.csv`、`time_history.csv`、`events.csv` 和 `README.md`，并在实验根目录生成 `summary_metrics.csv` 与 `study_manifest.json`：
+平台化入口保留原有 `ScenarioRunner` 用法，同时增加配置驱动的场景和实验运行器。下面的例子会生成 run 级 `manifest.json`、`metrics.csv`、`time_history.csv`、`events.csv` 和 `README.md`，并在实验根目录生成 `README.md`、`index.json`、`summary_metrics.csv`、`study_manifest.json` 与 `experiment_manifest.json`：
 
 ```python
 from satmodel import ScenarioSpec, StudyRunner
@@ -239,14 +239,14 @@ satmodel-run-scenario scenarios/quick_pd_zero.json \
 
 这会生成 `time.seed=100..119` 的 20 个 run。也可以和 `--sweep` 组合，形成“每组参数下跑多组随机 seed”的小型批量实验。跑完后先打开输出根目录的 `README.md` 看通过/失败数量、最佳 run 和关键指标；程序化分析则读取 `index.json` 或 `summary_metrics.csv`。
 
-`v0.3` 新增了实验计划入口，适合把一个完整实验保存成可复用 JSON：
+`v0.3` 新增了实验计划入口，适合把一个完整实验保存成可复用 JSON。`v0.4` 起，实验计划可以可选包含 runtime 和 mission 描述，运行后额外生成 `runtime_schedule.json` 与 `mode_timeline.json`：
 
 ```bash
 satmodel-validate-experiment scenarios/quick_pd_experiment.json
 satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
 ```
 
-实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置和所有 run 摘要。旧的 `satmodel-run-scenario` 和 Python `StudyRunner` 仍可用，它们内部会委托到新的平台层。
+实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和所有 run 摘要。旧的 `satmodel-run-scenario` 和 Python `StudyRunner` 仍可用，它们内部会委托到新的平台层。
 
 后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
 

@@ -16,6 +16,51 @@
     "samples": 2,
     "seed": 10
   },
+  "runtime": {
+    "name": "flight_process",
+    "tasks": [
+      {
+        "name": "attitude_control",
+        "update_period_s": 0.02,
+        "modules": [
+          {
+            "name": "attitude_sensor",
+            "role": "sensor"
+          },
+          {
+            "name": "pd_controller",
+            "role": "controller"
+          },
+          {
+            "name": "torque_actuator",
+            "role": "actuator"
+          },
+          {
+            "name": "summary_recorder",
+            "role": "recorder",
+            "update_period_s": 0.1
+          }
+        ]
+      }
+    ]
+  },
+  "mission": {
+    "steps": [
+      {
+        "name": "detumble",
+        "start_s": 0.0,
+        "stop_s": 0.5,
+        "mode": "detumble"
+      },
+      {
+        "name": "inertial_hold",
+        "start_s": 0.5,
+        "stop_s": 2.0,
+        "mode": "inertial_hold",
+        "reference": "body_zero"
+      }
+    ]
+  },
   "outputs": {
     "root": "results/platform/quick_pd_experiment"
   },

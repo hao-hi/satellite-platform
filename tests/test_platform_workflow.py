@@ -301,6 +301,21 @@ def test_experiment_plan_rejects_unknown_fields(tmp_path):
         experiment_plan_from_mapping(mapping)
 
 
+def test_experiment_plan_rejects_unknown_runtime_fields(tmp_path):
+    mapping = {
+        "schema_version": 1,
+        "scenario": _scenario_mapping(tmp_path / "unused"),
+        "runtime": {
+            "name": "flight",
+            "tasks": [],
+            "unexpected": True,
+        },
+    }
+
+    with pytest.raises(ValueError, match="unknown runtime process"):
+        experiment_plan_from_mapping(mapping)
+
+
 def test_experiment_runner_writes_platform_manifest_for_sweep(tmp_path):
     output = tmp_path / "experiment"
     plan = {
@@ -322,6 +337,54 @@ def test_experiment_runner_writes_platform_manifest_for_sweep(tmp_path):
     assert index["parameter_columns"] == ["param_controller.pd_kp"]
     assert manifest["experiment"]["metadata"]["name"] == "platform_experiment"
     assert manifest["experiment"]["sweeps"][0]["path"] == "controller.pd_kp"
+
+
+def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
+    output = tmp_path / "runtime-mission"
+    plan = {
+        "schema_version": 1,
+        "metadata": {"name": "runtime_mission_experiment"},
+        "scenario": _scenario_mapping(tmp_path / "ignored"),
+        "runtime": {
+            "name": "flight",
+            "tasks": [
+                {
+                    "name": "control",
+                    "update_period_s": 0.2,
+                    "modules": [
+                        {"name": "gyro", "role": "sensor", "update_period_s": 0.1},
+                        {"name": "pd_controller", "role": "controller"},
+                    ],
+                }
+            ],
+        },
+        "mission": {
+            "steps": [
+                {"name": "detumble", "start_s": 0.0, "stop_s": 0.2, "mode": "detumble"},
+                {"name": "hold", "start_s": 0.2, "stop_s": 0.4, "mode": "inertial_hold", "reference": "body_zero"},
+            ]
+        },
+        "outputs": {"root": str(output)},
+    }
+
+    summary = ExperimentRunner(plan).run()
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+    manifest = json.loads((output / "experiment_manifest.json").read_text(encoding="utf-8"))
+    schedule = json.loads((output / "runtime_schedule.json").read_text(encoding="utf-8"))
+    timeline = json.loads((output / "mode_timeline.json").read_text(encoding="utf-8"))
+    readme = (output / "README.md").read_text(encoding="utf-8")
+
+    assert "runtime_schedule" in summary.write_outputs()
+    assert "mode_timeline" in summary.write_outputs()
+    assert index["runtime_schedule"] == "runtime_schedule.json"
+    assert index["mode_timeline"] == "mode_timeline.json"
+    assert manifest["experiment"]["runtime"]["name"] == "flight"
+    assert manifest["experiment"]["mission"]["steps"][1]["mode"] == "inertial_hold"
+    assert schedule["event_count"] == len(schedule["events"])
+    assert schedule["events"][0]["module"] == "gyro"
+    assert timeline["timeline"][1]["reference"] == "body_zero"
+    assert "`runtime_schedule.json`" in readme
+    assert "`mode_timeline.json`" in readme
 
 
 def test_experiment_plan_loads_relative_scenario_path(tmp_path):

@@ -103,6 +103,16 @@ class ExperimentSummary:
 
         return ReportBuilder(self).write_index(filename)
 
+    def write_runtime_schedule(self, filename: str = "runtime_schedule.json") -> Path:
+        from satmodel.platform.reporting import ReportBuilder
+
+        return ReportBuilder(self).write_runtime_schedule(filename)
+
+    def write_mode_timeline(self, filename: str = "mode_timeline.json") -> Path:
+        from satmodel.platform.reporting import ReportBuilder
+
+        return ReportBuilder(self).write_mode_timeline(filename)
+
     def write_markdown(self, filename: str = "README.md") -> Path:
         from satmodel.platform.reporting import ReportBuilder
 

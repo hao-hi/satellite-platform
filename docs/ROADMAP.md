@@ -56,13 +56,13 @@
 2. `RuntimeProcess.schedule(duration_s)`：把任务和模块展开为确定性的多速率事件列表，用作后续调度器语义基线。
 3. `MissionSequence`、`MissionStep`、`ModeTimeline`：参考 GMAT 的 mission sequence 思想，描述实验步骤、参考切换、控制模式切换和运行区间。
 4. 严格 mapping 解析：`runtime_process_from_mapping()`、`mission_sequence_from_mapping()` 拒绝未知字段，便于后续配置 schema 收敛。
+5. `ExperimentPlan` 已支持可选 `runtime` 和 `mission` 字段；实验根目录可生成 `runtime_schedule.json` 和 `mode_timeline.json`。
 
 下一步交付：
 
-1. 将 runtime 和 mission 描述接入 `ExperimentPlan` 的可选字段，但保持旧 plan 兼容。
-2. 结果产物增加 runtime manifest 和 mode timeline，支持后续回放和可视化。
-3. 在等频配置下验证新调度器与当前 `ScenarioRunner` 的执行语义一致。
-4. 再扩展 detumble、inertial hold、sun pointing、earth pointing、安全模式等任务模式模板。
+1. 在等频配置下验证新调度器与当前 `ScenarioRunner` 的执行语义一致。
+2. 再扩展 detumble、inertial hold、sun pointing、earth pointing、安全模式等任务模式模板。
+3. 将 runtime schedule 和 mode timeline 接入后续图形报告、回放和实验浏览器。
 
 优先级说明：本阶段服务正常任务流程和调度，不把故障注入作为主需求；故障和降额可以作为 mission event 的后续扩展。
 

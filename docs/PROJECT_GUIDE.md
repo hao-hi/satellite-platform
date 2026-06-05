@@ -242,8 +242,10 @@ outputs:
 | --- | --- |
 | `summary_metrics.csv` | 汇总所有 run 的指标、参数、系统选择、故障数量、验收结果和输出目录，便于批量筛选和画图。 |
 | `study_manifest.json` | 记录 study 级生成时间、satmodel 版本、run 数和摘要行。 |
-| `experiment_manifest.json` | 记录 v0.3 实验计划、场景、扫描/Monte Carlo 设置、结果 schema 和 run 摘要。 |
-| `index.json` | 面向后续结果浏览、可视化和自动筛选的机器可读索引。 |
+| `experiment_manifest.json` | 记录平台实验计划、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述、结果 schema 和 run 摘要。 |
+| `runtime_schedule.json` | 当 `ExperimentPlan` 包含 runtime 时生成，保存 process/task/module 展开的确定性事件列表。 |
+| `mode_timeline.json` | 当 `ExperimentPlan` 包含 mission 时生成，保存任务步骤、模式区间和参考切换信息。 |
+| `index.json` | 面向后续结果浏览、可视化和自动筛选的机器可读索引，并指向可选 runtime/timeline 文件。 |
 
 复杂数据格式可以后置：Parquet 更适合大规模批量指标分析，HDF5 更适合保存稠密高维遥测和回放数据。但在 `v0.2`，优先形成可运行、可复现、少依赖的工作流。
 
