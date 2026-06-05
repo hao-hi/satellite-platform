@@ -29,8 +29,8 @@
 | Project | 工作区、场景目录、结果目录、manifest | `PlatformProject` |
 | Environment Setup | 轨道、地磁、大气、太阳、几何和外部场 | `ScenarioEnvironmentSpec`、`EnvironmentModel` |
 | Propagation Setup | 初始状态、积分器、时长、步长、被传播状态 | `ScenarioTimeSpec`、`SimulationConfig`、后续 propagation settings |
-| Runtime | process/task/module、调度周期、优先级 | 后续 `RuntimeProcess`、`RuntimeTask`、`RuntimeModule` |
-| Mission Sequence | 模式切换、参考切换、实验步骤 | 后续 `MissionSequence`、`ModeTimeline` |
+| Runtime | process/task/module、调度周期、优先级 | `RuntimeProcess`、`RuntimeTask`、`RuntimeModule` |
+| Mission Sequence | 模式切换、参考切换、实验步骤 | `MissionSequence`、`ModeTimeline` |
 | Recorder | run record、指标、时序、事件、遥测 | `ExperimentRecord`、`ResultWriter` |
 | Report | README、CSV、JSON index、实验 manifest | `ReportBuilder` |
 
@@ -82,13 +82,19 @@ satmodel/platform/
 
 目标是建立成熟项目常见的 runtime / mission sequence 层。
 
-计划新增：
+当前已新增：
 
-1. `RuntimeProcess`：一组 task 的执行容器。
-2. `RuntimeTask`：带更新周期、优先级和下次执行时间的任务。
+1. `RuntimeProcess`：一组 task 的执行容器，可以展开为确定性的事件 schedule。
+2. `RuntimeTask`：带更新周期、优先级、开始/停止时间和模块列表的任务。
 3. `RuntimeModule`：传感器、估计器、控制器、执行机构、记录器等可调度模块。
 4. `MissionSequence`：描述仿真任务步骤、参考切换和模式切换。
-5. `ModeTimeline`：记录 detumble、惯性定向、对日、对地、安全模式等模式区间。
+5. `ModeTimeline`：可按时间查询 detumble、惯性定向、对日、对地、安全模式等模式区间。
+
+当前边界：
+
+1. 新 runtime/mission 类型先作为描述和验证层，不替换 `ScenarioRunner` 的物理执行路径。
+2. `ExperimentPlan` 暂不强制包含 runtime 或 mission 字段，避免破坏 v0.3 plan schema。
+3. 后续小迭代再把 runtime manifest、mode timeline 和调度结果写入实验级报告。
 
 本阶段优先服务正常任务流程和多速率调度；故障注入、丢包、降额可以后续作为 mission event 扩展。
 
@@ -189,8 +195,9 @@ result = ScenarioRunner(system).run(SimulationConfig(duration=5.0, dt=0.02))
 
 1. `Document mature platform roadmap`：统一路线和文档口径。
 2. `Modularize platform package`：把当前 `platform.core` 拆为 plan/runner/records/reporting/project。
-3. `Add runtime skeleton`：新增 RuntimeProcess/RuntimeTask/RuntimeModule 只读骨架和文档。
-4. `Add mission sequence skeleton`：新增 MissionSequence/ModeTimeline 的配置和验证。
-5. `Add high-fidelity model adapters`：按环境、传播、执行机构、传感器逐步扩展。
+3. `Add runtime skeleton`：已新增 RuntimeProcess/RuntimeTask/RuntimeModule 只读骨架和文档。
+4. `Add mission sequence skeleton`：已新增 MissionSequence/ModeTimeline 的配置和验证。
+5. `Connect runtime manifests`：把 runtime schedule 和 mode timeline 写入实验级结果产物。
+6. `Add high-fidelity model adapters`：按环境、传播、执行机构、传感器逐步扩展。
 
 每一步都应运行测试，并避免把平台架构、高保真物理模型和可视化产品化混在同一个提交里。

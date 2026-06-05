@@ -109,17 +109,18 @@ satmodel/platform/
 
 当前职责边界是：`ExperimentPlan` 负责配置契约，`ExperimentRunner` 负责执行，`ExperimentRecord`/`ExperimentSummary` 负责运行结果，`ReportBuilder` 负责数据产品，`PlatformProject` 负责工作区路径和资源定位。
 
-更长远的 v0.4 运行时架构可以在这个平台流上替换当前单速率执行器：
+v0.4 已新增轻量 runtime / mission 描述层。它目前作为可验证的调度语义骨架存在，后续可以在这个平台流上替换当前单速率执行器：
 
 ```text
 ScenarioSpec
     -> ScenarioCompiler
-    -> MultiRateScheduler
+    -> RuntimeProcess / RuntimeTask / RuntimeModule
+    -> MissionSequence / ModeTimeline
     -> Recorder / ResultWriter
     -> Report / Replay
 ```
 
-多速率调度器应以当前单步数据流作为语义基线。等频配置下，动力学、传感器、估计器、控制器、执行器和记录顺序应保持可解释的一致性。
+`RuntimeProcess.schedule(duration_s)` 会先把 process/task/module 展开为确定性的事件列表。多速率调度器应以当前单步数据流作为语义基线；等频配置下，动力学、传感器、估计器、控制器、执行器和记录顺序应保持可解释的一致性。
 
 任务模式和调度优先服务正常任务流程，例如 detumble、惯性定向、对日、对地和安全模式。故障注入、丢包和降额属于 mission event 的后续扩展，不作为下一阶段主线。
 
