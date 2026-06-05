@@ -23,7 +23,12 @@ from satmodel.cli import run_scenario_main
 from satmodel.cli import validate_experiment_main
 from satmodel.cli import validate_scenario_main
 from satmodel.cli import build_dashboard_main
-from satmodel.platform.webapp import discover_workspace, run_workspace_experiment, validate_workspace_experiment
+from satmodel.platform.webapp import (
+    create_workspace_experiment_plan,
+    discover_workspace,
+    run_workspace_experiment,
+    validate_workspace_experiment,
+)
 
 
 def _scenario_mapping(output_root):
@@ -632,6 +637,42 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     assert result["dashboard_url"] == "/file/results/webapp_plan/dashboard.html"
     assert (workspace / "results" / "webapp_plan" / "dashboard.html").exists()
     assert rediscovered["dashboards"][0]["url"] == "/file/results/webapp_plan/dashboard.html"
+
+
+def test_platform_webapp_creates_experiment_plan_from_scenario(tmp_path):
+    workspace = tmp_path / "workspace"
+    scenario_dir = workspace / "scenarios"
+    scenario_dir.mkdir(parents=True)
+    scenario_path = scenario_dir / "scenario.json"
+    scenario_path.write_text(json.dumps(_scenario_mapping(workspace / "ignored"), ensure_ascii=False), encoding="utf-8")
+
+    created = create_workspace_experiment_plan(
+        workspace,
+        {
+            "scenario_path": "scenarios/scenario.json",
+            "name": "Generated PD Sweep",
+            "sweep_path": "controller.pd_kp",
+            "sweep_values": "0.2,0.3",
+            "monte_carlo_samples": 2,
+            "monte_carlo_seed": 12,
+            "mission_template": "detumble_then_hold",
+            "detumble_s": 0.2,
+            "hold_mode": "sun_pointing",
+            "reference": "sun",
+        },
+    )
+    plan_path = workspace / created["path"]
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    validation = validate_workspace_experiment(workspace, created["path"])
+
+    assert created["path"] == "scenarios/Generated_PD_Sweep.json"
+    assert created["validation"]["runs"] == 4
+    assert validation["runs"] == 4
+    assert plan["scenario"] == "scenario.json"
+    assert plan["sweeps"][0]["values"] == [0.2, 0.3]
+    assert plan["monte_carlo"]["seed"] == 12
+    assert plan["runtime"]["template"] == "single_rate"
+    assert plan["mission"]["hold_mode"] == "sun_pointing"
 
 
 def test_validate_experiment_cli_does_not_write_outputs(tmp_path, capsys):

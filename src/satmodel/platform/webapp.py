@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import re
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -110,6 +111,74 @@ def run_workspace_experiment(root: str | Path, plan_path: str, output_dir: str |
     }
 
 
+def create_workspace_experiment_plan(root: str | Path, payload: dict[str, Any]) -> dict[str, Any]:
+    """Create an experiment plan JSON file from local UI form values."""
+
+    workspace = Path(root).resolve()
+    scenario_path = _safe_path(workspace, str(payload["scenario_path"]))
+    scenario_rel = _relative(scenario_path, scenario_path.parent)
+    name = str(payload.get("name") or scenario_path.stem).strip()
+    if not name:
+        raise ValueError("experiment name is required")
+    slug = _slug(name)
+    scenario_dir = workspace / "scenarios"
+    scenario_dir.mkdir(parents=True, exist_ok=True)
+    plan_path = scenario_dir / f"{slug}.json"
+    if plan_path.exists() and not payload.get("overwrite", False):
+        raise ValueError(f"experiment plan already exists: {_relative(plan_path, workspace)}")
+
+    plan: dict[str, Any] = {
+        "schema_version": 1,
+        "metadata": {
+            "name": name,
+            "description": str(payload.get("description") or f"Generated platform experiment for {scenario_path.stem}."),
+            "tags": ["platform", "generated"],
+        },
+        "scenario": scenario_rel,
+        "sweeps": [],
+        "outputs": {
+            "root": str(payload.get("output_root") or f"results/platform_ui/{slug}"),
+        },
+        "runtime": {"template": "single_rate"},
+    }
+
+    sweep_path = str(payload.get("sweep_path") or "").strip()
+    sweep_values = _parse_list(payload.get("sweep_values"))
+    if sweep_path and sweep_values:
+        plan["sweeps"].append({"path": sweep_path, "values": sweep_values})
+    samples = int(payload.get("monte_carlo_samples") or 0)
+    if samples > 0:
+        monte_carlo: dict[str, Any] = {"samples": samples}
+        if payload.get("monte_carlo_seed") not in (None, ""):
+            monte_carlo["seed"] = int(payload["monte_carlo_seed"])
+        plan["monte_carlo"] = monte_carlo
+
+    mission_template = str(payload.get("mission_template") or "single_mode")
+    if mission_template == "detumble_then_hold":
+        plan["mission"] = {
+            "template": "detumble_then_hold",
+            "detumble_s": float(payload.get("detumble_s") or 0.5),
+            "hold_mode": str(payload.get("hold_mode") or "inertial_hold"),
+            "reference": str(payload.get("reference") or "body_zero"),
+        }
+    elif mission_template == "single_mode":
+        plan["mission"] = {
+            "template": "single_mode",
+            "mode": str(payload.get("mode") or "inertial_hold"),
+            "reference": str(payload.get("reference") or "body_zero"),
+        }
+    else:
+        raise ValueError(f"unknown mission template: {mission_template}")
+
+    plan_path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    validation = validate_workspace_experiment(workspace, _relative(plan_path, workspace))
+    return {
+        "path": _relative(plan_path, workspace),
+        "name": name,
+        "validation": validation,
+    }
+
+
 def serve_platform_ui(
     root: str | Path = ".",
     *,
@@ -167,6 +236,9 @@ class PlatformUIHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/run-experiment":
                 self._send_json(run_workspace_experiment(self.workspace_root, payload["path"], payload.get("output_dir")))
                 return
+            if parsed.path == "/api/create-experiment":
+                self._send_json(create_workspace_experiment_plan(self.workspace_root, payload))
+                return
             self._send_json({"error": "not found"}, status=404)
         except Exception as exc:
             self._send_json({"error": str(exc)}, status=400)
@@ -219,6 +291,37 @@ def _relative(path: Path, root: Path) -> str:
 
 def _file_url(path: Path, root: Path) -> str:
     return f"/file/{_relative(path, root)}"
+
+
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", value.strip()).strip("._-")
+    return slug or "experiment"
+
+
+def _parse_list(value) -> list[Any]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, list):
+        return value
+    text = str(value).strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
+        return [parsed]
+    except json.JSONDecodeError:
+        values = []
+        for item in text.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            try:
+                values.append(json.loads(item))
+            except json.JSONDecodeError:
+                values.append(item)
+        return values
 
 
 def _render_home() -> str:
@@ -282,7 +385,7 @@ def _render_home() -> str:
       text-overflow: ellipsis;
     }
     th { color: var(--muted); background: #fafbfc; font-weight: 650; }
-    button, input {
+    button, input, select {
       min-height: 34px;
       border-radius: 6px;
       border: 1px solid var(--line);
@@ -290,6 +393,8 @@ def _render_home() -> str:
       background: #fff;
       color: var(--ink);
     }
+    label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+    label input, label select { color: var(--ink); font-size: 14px; }
     button {
       cursor: pointer;
       border-color: #b9c4d5;
@@ -302,6 +407,8 @@ def _render_home() -> str:
     }
     button:disabled { opacity: .55; cursor: wait; }
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .full { grid-column: 1 / -1; }
     .path { color: var(--muted); font-size: 13px; }
     .status { color: var(--muted); min-height: 22px; }
     .ok { color: var(--ok); }
@@ -340,6 +447,25 @@ def _render_home() -> str:
         </section>
       </div>
       <div>
+        <section>
+          <h2>Create Experiment</h2>
+          <div class="form-grid">
+            <label class="full">Scenario<select id="builder-scenario"></select></label>
+            <label>Name<input id="builder-name" placeholder="quick_pd_sweep"></label>
+            <label>Output<input id="builder-output" placeholder="results/platform_ui/quick_pd_sweep"></label>
+            <label>Sweep path<input id="builder-sweep-path" value="controller.pd_kp"></label>
+            <label>Sweep values<input id="builder-sweep-values" placeholder="1.2,1.5"></label>
+            <label>MC samples<input id="builder-mc-samples" type="number" min="0" value="0"></label>
+            <label>MC seed<input id="builder-mc-seed" type="number" placeholder="10"></label>
+            <label>Mission<select id="builder-mission"><option value="single_mode">single_mode</option><option value="detumble_then_hold">detumble_then_hold</option></select></label>
+            <label>Mode<input id="builder-mode" value="inertial_hold"></label>
+            <label>Detumble s<input id="builder-detumble" type="number" step="0.1" value="0.5"></label>
+            <label>Reference<input id="builder-reference" value="body_zero"></label>
+          </div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="primary" id="create-plan">Create Plan</button>
+          </div>
+        </section>
         <section>
           <h2>Workspace</h2>
           <div class="cards">
@@ -382,7 +508,13 @@ def _render_home() -> str:
       document.getElementById('dashboard-count').textContent = state.workspace.dashboards.length;
       renderExperiments();
       renderDashboards();
+      renderBuilder();
       setStatus('Ready.', 'ok');
+    }
+    function renderBuilder() {
+      const select = document.getElementById('builder-scenario');
+      select.innerHTML = state.workspace.scenarios.map(item => `<option value="${esc(item.path)}">${esc(item.name)} - ${esc(item.path)}</option>`).join('');
+      if (!select.value && state.workspace.scenarios[0]) select.value = state.workspace.scenarios[0].path;
     }
     function renderExperiments() {
       const rows = state.workspace.experiments;
@@ -425,7 +557,34 @@ def _render_home() -> str:
         setStatus(err.message, 'bad');
       }
     }
+    async function createPlan() {
+      try {
+        const scenario = document.getElementById('builder-scenario').value;
+        if (!scenario) throw new Error('No scenario selected.');
+        const body = {
+          scenario_path: scenario,
+          name: document.getElementById('builder-name').value || 'generated_experiment',
+          output_root: document.getElementById('builder-output').value,
+          sweep_path: document.getElementById('builder-sweep-path').value,
+          sweep_values: document.getElementById('builder-sweep-values').value,
+          monte_carlo_samples: Number(document.getElementById('builder-mc-samples').value || 0),
+          monte_carlo_seed: document.getElementById('builder-mc-seed').value,
+          mission_template: document.getElementById('builder-mission').value,
+          mode: document.getElementById('builder-mode').value,
+          hold_mode: document.getElementById('builder-mode').value,
+          detumble_s: Number(document.getElementById('builder-detumble').value || 0.5),
+          reference: document.getElementById('builder-reference').value,
+        };
+        setStatus(`Creating ${body.name}...`);
+        const result = await api('/api/create-experiment', {method:'POST', body: JSON.stringify(body)});
+        setStatus(`Created ${result.path}; validation runs=${result.validation.runs}.`, 'ok');
+        await load();
+      } catch (err) {
+        setStatus(err.message, 'bad');
+      }
+    }
     document.getElementById('refresh').addEventListener('click', load);
+    document.getElementById('create-plan').addEventListener('click', createPlan);
     load().catch(err => setStatus(err.message, 'bad'));
   </script>
 </body>

@@ -262,7 +262,7 @@ satmodel-build-dashboard results/quick_pd_experiment
 satmodel-platform-ui --open
 ```
 
-控制台会发现 `scenarios/` 下的实验计划，支持校验、运行实验，并自动打开生成的 `dashboard.html`。
+控制台会发现 `scenarios/` 下的场景和实验计划，支持从场景生成新的实验计划、校验计划、运行实验，并自动打开生成的 `dashboard.html`。
 
 后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
 
