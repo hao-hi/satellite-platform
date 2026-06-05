@@ -137,6 +137,18 @@ class ResultWriter:
         fieldnames = [
             "time_s",
             "attitude_error_deg",
+            "true_qw",
+            "true_qx",
+            "true_qy",
+            "true_qz",
+            "estimated_qw",
+            "estimated_qx",
+            "estimated_qy",
+            "estimated_qz",
+            "reference_qw",
+            "reference_qx",
+            "reference_qy",
+            "reference_qz",
             "omega_x_rad_s",
             "omega_y_rad_s",
             "omega_z_rad_s",
@@ -151,6 +163,7 @@ class ResultWriter:
             "disturbance_torque_z_nm",
         ]
         error = result.attitude_error_deg
+        reference_track = result.reference_track()
         with path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
@@ -159,6 +172,18 @@ class ResultWriter:
                     {
                         "time_s": float(time_s),
                         "attitude_error_deg": float(error[index]),
+                        "true_qw": float(result.true_quaternion[index, 0]),
+                        "true_qx": float(result.true_quaternion[index, 1]),
+                        "true_qy": float(result.true_quaternion[index, 2]),
+                        "true_qz": float(result.true_quaternion[index, 3]),
+                        "estimated_qw": float(result.estimated_quaternion[index, 0]),
+                        "estimated_qx": float(result.estimated_quaternion[index, 1]),
+                        "estimated_qy": float(result.estimated_quaternion[index, 2]),
+                        "estimated_qz": float(result.estimated_quaternion[index, 3]),
+                        "reference_qw": float(reference_track[index, 0]),
+                        "reference_qx": float(reference_track[index, 1]),
+                        "reference_qy": float(reference_track[index, 2]),
+                        "reference_qz": float(reference_track[index, 3]),
                         "omega_x_rad_s": float(result.true_omega[index, 0]),
                         "omega_y_rad_s": float(result.true_omega[index, 1]),
                         "omega_z_rad_s": float(result.true_omega[index, 2]),

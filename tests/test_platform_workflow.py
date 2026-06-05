@@ -149,6 +149,11 @@ def test_json_scenario_loads_and_study_runner_writes_outputs(tmp_path):
     assert summary_rows[0]["seed"] == "5"
     assert summary_rows[0]["fault_count"] == "0"
     assert summary_rows[0]["accepted"] == "True"
+    with (output / "time_history.csv").open(newline="", encoding="utf-8") as handle:
+        time_history_rows = list(csv.DictReader(handle))
+    assert "true_qw" in time_history_rows[0]
+    assert "estimated_qw" in time_history_rows[0]
+    assert "reference_qw" in time_history_rows[0]
     with (output / "events.csv").open(newline="", encoding="utf-8") as handle:
         event_rows = list(csv.DictReader(handle))
     assert event_rows == []
@@ -671,12 +676,14 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     assert result["summary"]["run_count"] == 1
     assert result["summary"]["compare_run_ids"] == ["run_000"]
     assert "run_000" in result["summary"]["compare_histories"]
+    assert "true_qw" in result["summary"]["compare_histories"]["run_000"][0]
     assert result["dashboard_url"] == "/file/results/webapp_plan/dashboard.html"
     assert dashboard_details["scenario_name"] == "platform_smoke"
     assert dashboard_details["best_run_id"] == "run_000"
     assert dashboard_details["run_count"] == 1
     assert dashboard_details["compare_run_ids"] == ["run_000"]
     assert dashboard_details["compare_histories"]["run_000"][0]["attitude_error_deg"] >= 0.0
+    assert dashboard_details["compare_histories"]["run_000"][0]["true_qw"] >= 0.0
     assert dashboard_details["files"][-1]["name"] == "dashboard.html"
     assert (workspace / "results" / "webapp_plan" / "dashboard.html").exists()
     assert rediscovered["dashboards"][0]["run_count"] == 1

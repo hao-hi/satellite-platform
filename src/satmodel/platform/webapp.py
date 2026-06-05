@@ -538,6 +538,18 @@ def _read_time_history(path: Path) -> list[dict[str, Any]]:
     columns = {
         "time_s",
         "attitude_error_deg",
+        "true_qw",
+        "true_qx",
+        "true_qy",
+        "true_qz",
+        "estimated_qw",
+        "estimated_qx",
+        "estimated_qy",
+        "estimated_qz",
+        "reference_qw",
+        "reference_qx",
+        "reference_qy",
+        "reference_qz",
         "omega_x_rad_s",
         "omega_y_rad_s",
         "omega_z_rad_s",
@@ -915,6 +927,49 @@ def _render_home() -> str:
       background: #fbfcfe;
       margin-top: 10px;
     }
+    .replay-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+    .replay-stage {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top, rgba(15, 108, 123, 0.18), rgba(15, 108, 123, 0) 46%),
+        linear-gradient(180deg, #fbfdff, #edf3f7);
+    }
+    .replay-canvas {
+      width: 100%;
+      height: 300px;
+      display: block;
+    }
+    .replay-readout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+    }
+    .replay-readout div {
+      border: 1px solid #e4eaf2;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    .replay-readout span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .replay-slider {
+      width: 100%;
+      margin-top: 12px;
+    }
     a {
       color: var(--accent-strong);
       text-decoration: none;
@@ -929,6 +984,7 @@ def _render_home() -> str:
       iframe { height: 520px; }
     }
   </style>
+  <script src="https://unpkg.com/three@0.167.1/build/three.min.js"></script>
 </head>
 <body>
   <header>
@@ -1005,6 +1061,10 @@ def _render_home() -> str:
           <div id="compare-view" class="empty">选择结果目录后，这里会显示最佳/最差或关键 run 的对照指标和曲线。</div>
         </section>
         <section>
+          <h2>三维姿态回放</h2>
+          <div id="replay-view" class="empty">选择结果目录后，这里会显示基于真实四元数的姿态回放。</div>
+        </section>
+        <section>
           <h2>结果预览</h2>
           <div id="preview-shell" class="preview-shell">
             <div class="preview-meta">
@@ -1038,6 +1098,7 @@ def _render_home() -> str:
     const previewTitle = document.getElementById('preview-title');
     const openDashboard = document.getElementById('open-dashboard');
     const compareView = document.getElementById('compare-view');
+    const replayView = document.getElementById('replay-view');
     const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const fmt = value => value === null || value === undefined || value === '' ? '—' : Number.isFinite(Number(value)) ? Number(value).toPrecision(5).replace(/\\.0+$/, '') : String(value);
 
@@ -1179,6 +1240,7 @@ def _render_home() -> str:
       previewFrame.src = result.url;
       openDashboard.disabled = false;
       renderCompareView(result);
+      renderReplayView(result);
     }
 
     function clearDashboardPreview() {
@@ -1186,6 +1248,8 @@ def _render_home() -> str:
       state.currentDashboardUrl = null;
       document.getElementById('result-summary').innerHTML = '运行实验或选择一个结果目录后，这里会显示实验摘要、最佳 run 和关键文件。';
       compareView.innerHTML = '选择结果目录后，这里会显示最佳/最差或关键 run 的对照指标和曲线。';
+      replayView.innerHTML = '选择结果目录后，这里会显示基于真实四元数的姿态回放。';
+      stopReplayAnimation();
       previewTitle.textContent = '还没有加载结果界面';
       previewFrame.hidden = true;
       previewFrame.removeAttribute('src');
@@ -1313,6 +1377,188 @@ def _render_home() -> str:
       `;
       svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
       svg.innerHTML = `${grid}<line x1="${pad.left}" y1="${pad.top + plotH}" x2="${width - pad.right}" y2="${pad.top + plotH}" stroke="#bfc9d8" stroke-width="1"/>${paths}${legend}<text x="${width - 62}" y="${height - 10}" fill="#637083" font-size="11">time_s</text><text x="8" y="30" fill="#637083" font-size="11">${fmt(maxY)}</text><text x="8" y="${height - 38}" fill="#637083" font-size="11">${fmt(minY)}</text>`;
+    }
+
+    function renderReplayView(result) {
+      const histories = result.compare_histories || {};
+      const runIds = (result.compare_run_ids || []).filter(runId => (histories[runId] || []).some(row => Number.isFinite(Number(row.true_qw))));
+      if (!runIds.length) {
+        replayView.innerHTML = '<div class="empty">当前结果还没有姿态四元数历史。重新运行后即可启用三维回放。</div>';
+        stopReplayAnimation();
+        return;
+      }
+      replayView.innerHTML = `
+        <div class="replay-toolbar">
+          <label>回放 Run<select id="replay-run">${runIds.map(runId => `<option value="${esc(runId)}">${esc(runId)}</option>`).join('')}</select></label>
+          <button id="replay-play" class="secondary" type="button">播放</button>
+          <button id="replay-reset" class="secondary" type="button">回到起点</button>
+        </div>
+        <div class="replay-stage">
+          <div id="replay-canvas" class="replay-canvas"></div>
+          <div class="replay-readout">
+            <div><span>仿真时间</span><strong id="replay-time">0 s</strong></div>
+            <div><span>姿态误差</span><strong id="replay-error">0 deg</strong></div>
+            <div><span>当前 Run</span><strong id="replay-run-label">${esc(runIds[0])}</strong></div>
+          </div>
+        </div>
+        <input id="replay-slider" class="replay-slider" type="range" min="0" max="0" step="1" value="0">
+      `;
+      const select = document.getElementById('replay-run');
+      const slider = document.getElementById('replay-slider');
+      const playButton = document.getElementById('replay-play');
+      const resetButton = document.getElementById('replay-reset');
+      const replayState = {
+        histories,
+        runIds,
+        currentRunId: runIds[0],
+        frameIndex: 0,
+      };
+      ensureReplayScene();
+
+      const updateFrame = (frameIndex) => {
+        const history = replayState.histories[replayState.currentRunId] || [];
+        if (!history.length) return;
+        replayState.frameIndex = Math.max(0, Math.min(frameIndex, history.length - 1));
+        const sample = history[replayState.frameIndex];
+        slider.max = String(Math.max(history.length - 1, 0));
+        slider.value = String(replayState.frameIndex);
+        document.getElementById('replay-time').textContent = `${fmt(sample.time_s)} s`;
+        document.getElementById('replay-error').textContent = `${fmt(sample.attitude_error_deg)} deg`;
+        document.getElementById('replay-run-label').textContent = replayState.currentRunId;
+        applyReplaySample(sample);
+      };
+
+      const updateRun = (runId) => {
+        replayState.currentRunId = runId;
+        const history = replayState.histories[runId] || [];
+        slider.max = String(Math.max(history.length - 1, 0));
+        updateFrame(0);
+      };
+
+      select.addEventListener('change', () => {
+        stopReplayAnimation();
+        playButton.textContent = '播放';
+        updateRun(select.value);
+      });
+      slider.addEventListener('input', () => {
+        stopReplayAnimation();
+        playButton.textContent = '播放';
+        updateFrame(Number(slider.value));
+      });
+      playButton.addEventListener('click', () => {
+        if (window.__satmodelReplay?.timer) {
+          stopReplayAnimation();
+          playButton.textContent = '播放';
+          return;
+        }
+        playButton.textContent = '暂停';
+        window.__satmodelReplay.timer = setInterval(() => {
+          const history = replayState.histories[replayState.currentRunId] || [];
+          if (!history.length) return;
+          const nextIndex = (replayState.frameIndex + 1) % history.length;
+          updateFrame(nextIndex);
+        }, 60);
+      });
+      resetButton.addEventListener('click', () => {
+        stopReplayAnimation();
+        playButton.textContent = '播放';
+        updateFrame(0);
+      });
+
+      stopReplayAnimation();
+      updateRun(runIds[0]);
+    }
+
+    function ensureReplayScene() {
+      const host = document.getElementById('replay-canvas');
+      if (!host) return;
+      if (typeof THREE === 'undefined') {
+        host.innerHTML = '<div class="empty" style="margin:12px">Three.js 未加载，暂时无法显示三维姿态回放。</div>';
+        return;
+      }
+      if (window.__satmodelReplay?.host === host) {
+        resizeReplayRenderer();
+        return;
+      }
+      stopReplayAnimation();
+      host.innerHTML = '';
+      const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      host.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+      camera.position.set(2.8, 2.2, 4.8);
+      camera.lookAt(0, 0, 0);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.95);
+      const directional = new THREE.DirectionalLight(0xffffff, 1.2);
+      directional.position.set(3, 3, 2);
+      scene.add(ambient, directional);
+
+      const bodyMaterial = new THREE.MeshStandardMaterial({color: 0xe9f0f5, metalness: 0.2, roughness: 0.5});
+      const panelAMaterial = new THREE.MeshStandardMaterial({color: 0x124e78, metalness: 0.15, roughness: 0.45});
+      const panelBMaterial = new THREE.MeshStandardMaterial({color: 0x0f6c7b, metalness: 0.15, roughness: 0.45});
+      const accentMaterial = new THREE.MeshStandardMaterial({color: 0xb96a10, metalness: 0.35, roughness: 0.3});
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.65, 0.8), bodyMaterial);
+      const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.03, 0.58), panelAMaterial);
+      const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.03, 0.58), panelBMaterial);
+      leftPanel.position.set(-1.05, 0, 0);
+      rightPanel.position.set(1.05, 0, 0);
+      const boresight = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 18), accentMaterial);
+      boresight.position.set(0, 0.45, 0);
+      boresight.rotation.z = Math.PI;
+      group.add(body, leftPanel, rightPanel, boresight);
+      scene.add(group);
+      scene.add(new THREE.AxesHelper(2.0));
+
+      const grid = new THREE.GridHelper(8, 8, 0xc9d4e2, 0xe3e9f1);
+      grid.position.y = -1.0;
+      scene.add(grid);
+
+      window.__satmodelReplay = {
+        host,
+        renderer,
+        scene,
+        camera,
+        group,
+        timer: null,
+      };
+      resizeReplayRenderer();
+      renderer.render(scene, camera);
+    }
+
+    function resizeReplayRenderer() {
+      const replay = window.__satmodelReplay;
+      if (!replay?.host || !replay?.renderer || !replay?.camera) return;
+      const width = replay.host.clientWidth || 640;
+      const height = replay.host.clientHeight || 300;
+      replay.renderer.setSize(width, height, false);
+      replay.camera.aspect = width / Math.max(height, 1);
+      replay.camera.updateProjectionMatrix();
+      replay.renderer.render(replay.scene, replay.camera);
+    }
+
+    function applyReplaySample(sample) {
+      const replay = window.__satmodelReplay;
+      if (!replay?.group || typeof THREE === 'undefined') return;
+      if ([sample.true_qw, sample.true_qx, sample.true_qy, sample.true_qz].every(value => Number.isFinite(Number(value)))) {
+        replay.group.quaternion.set(
+          Number(sample.true_qx),
+          Number(sample.true_qy),
+          Number(sample.true_qz),
+          Number(sample.true_qw),
+        );
+      }
+      replay.renderer.render(replay.scene, replay.camera);
+    }
+
+    function stopReplayAnimation() {
+      const replay = window.__satmodelReplay;
+      if (replay?.timer) {
+        clearInterval(replay.timer);
+        replay.timer = null;
+      }
     }
 
     async function validatePlan(path) {
