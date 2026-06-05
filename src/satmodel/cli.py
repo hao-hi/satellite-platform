@@ -10,6 +10,7 @@ from pathlib import Path
 from satmodel.config import load_scenario, scenario_from_mapping, scenario_to_mapping
 from satmodel.config.compiler import compile_scenario
 from satmodel.platform import ExperimentRunner, build_dashboard
+from satmodel.platform.webapp import serve_platform_ui
 from satmodel.studies import MonteCarlo, StudyRunner, Sweep, set_mapping_path
 
 
@@ -201,6 +202,22 @@ def build_dashboard_main(argv=None) -> None:
     print(f"Dashboard: {path}")
     if args.open:
         webbrowser.open(path.resolve().as_uri())
+
+
+def platform_ui_main(argv=None) -> None:
+    """Serve the local satmodel platform browser UI."""
+
+    parser = argparse.ArgumentParser(
+        prog="satmodel-platform-ui",
+        description="Serve a local browser UI for validating and running satmodel experiments.",
+    )
+    parser.add_argument("--root", default=".", help="Workspace root containing scenarios/ and results/")
+    parser.add_argument("--host", default="127.0.0.1", help="Host interface to bind")
+    parser.add_argument("--port", type=int, default=8765, help="Port to bind")
+    parser.add_argument("--open", action="store_true", help="Open the UI in the default browser")
+    args = parser.parse_args(argv)
+
+    serve_platform_ui(args.root, host=args.host, port=args.port, open_browser=args.open)
 
 
 def _print_run_summary(summary) -> None:

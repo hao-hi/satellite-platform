@@ -126,6 +126,8 @@ ScenarioSpec
 
 `dashboard.html` 是当前轻量可视化入口。它不需要数据库或 Web 服务，直接读取同目录的 `index.json`、`summary_metrics.csv`、`runtime_schedule.json` 和 `mode_timeline.json`，用于浏览 run、指标、验收状态、调度和模式时间线。
 
+`satmodel-platform-ui` 是当前轻量操作入口。它使用本地 HTTP 服务包装平台 API，发现 `scenarios/` 下的实验计划，并通过 `ExperimentRunner` 执行校验和运行；生成的结果仍然落在标准实验目录中，由 `dashboard.html` 负责展示。
+
 任务模式和调度优先服务正常任务流程，例如 detumble、惯性定向、对日、对地和安全模式。故障注入、丢包和降额属于 mission event 的后续扩展，不作为下一阶段主线。
 
 ## 两条默认系统路径

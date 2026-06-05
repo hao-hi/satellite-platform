@@ -23,6 +23,7 @@ from satmodel.cli import run_scenario_main
 from satmodel.cli import validate_experiment_main
 from satmodel.cli import validate_scenario_main
 from satmodel.cli import build_dashboard_main
+from satmodel.platform.webapp import discover_workspace, run_workspace_experiment, validate_workspace_experiment
 
 
 def _scenario_mapping(output_root):
@@ -595,6 +596,42 @@ def test_build_dashboard_cli_writes_static_interface(tmp_path, capsys):
     assert "dashboard_experiment" in html
     assert "Runtime Schedule" in html
     assert "Mode Timeline" in html
+
+
+def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
+    workspace = tmp_path / "workspace"
+    scenario_dir = workspace / "scenarios"
+    scenario_dir.mkdir(parents=True)
+    scenario_path = scenario_dir / "scenario.json"
+    plan_path = scenario_dir / "plan.json"
+    scenario_path.write_text(json.dumps(_scenario_mapping(workspace / "ignored"), ensure_ascii=False), encoding="utf-8")
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {"name": "webapp_plan"},
+                "scenario": "scenario.json",
+                "runtime": {"template": "single_rate"},
+                "mission": {"template": "single_mode", "mode": "safe"},
+                "outputs": {"root": str(workspace / "ignored-output")},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    discovered = discover_workspace(workspace)
+    validation = validate_workspace_experiment(workspace, "scenarios/plan.json")
+    result = run_workspace_experiment(workspace, "scenarios/plan.json", "results/webapp_plan")
+    rediscovered = discover_workspace(workspace)
+
+    assert discovered["experiments"][0]["name"] == "webapp_plan"
+    assert validation["valid"] is True
+    assert validation["runs"] == 1
+    assert result["runs"] == 1
+    assert result["dashboard_url"] == "/file/results/webapp_plan/dashboard.html"
+    assert (workspace / "results" / "webapp_plan" / "dashboard.html").exists()
+    assert rediscovered["dashboards"][0]["url"] == "/file/results/webapp_plan/dashboard.html"
 
 
 def test_validate_experiment_cli_does_not_write_outputs(tmp_path, capsys):

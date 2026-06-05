@@ -120,6 +120,7 @@ satmodel/platform/
 
 1. `dashboard.html`：实验根目录的静态结果浏览界面，支持 run 筛选、验收状态筛选、指标柱状图、run 表、runtime schedule 和 mode timeline。
 2. `satmodel-build-dashboard OUTPUT_DIR`：为已有实验目录补建静态界面。
+3. `satmodel-platform-ui`：本地浏览器控制台，支持发现 `scenarios/` 下的实验计划、校验计划、运行实验并打开结果 dashboard。
 
 后续计划：
 
@@ -168,6 +169,7 @@ satmodel-run-scenario scenarios/quick_pd_zero.json --output results/platform/qui
 satmodel-validate-experiment scenarios/quick_pd_experiment.json
 satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
 satmodel-build-dashboard results/quick_pd_experiment
+satmodel-platform-ui --open
 ```
 
 Python 入口：

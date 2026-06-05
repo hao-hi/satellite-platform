@@ -256,6 +256,14 @@ satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quic
 satmodel-build-dashboard results/quick_pd_experiment
 ```
 
+如果希望从浏览器里操作平台，启动本地控制台：
+
+```bash
+satmodel-platform-ui --open
+```
+
+控制台会发现 `scenarios/` 下的实验计划，支持校验、运行实验，并自动打开生成的 `dashboard.html`。
+
 后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
 
 场景文件也可以配置 orbital 环境和轨道参数：
