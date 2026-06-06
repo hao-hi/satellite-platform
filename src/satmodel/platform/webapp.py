@@ -406,7 +406,9 @@ def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
     index = _read_json_file(experiment_dir / "index.json")
     manifest = _read_json_file(experiment_dir / "experiment_manifest.json")
     timeline_name = index.get("mode_timeline")
+    runtime_name = index.get("runtime_schedule")
     timeline_data = _read_json_file(experiment_dir / str(timeline_name)) if timeline_name else {}
+    runtime_data = _read_json_file(experiment_dir / str(runtime_name)) if runtime_name else {}
     experiment = manifest.get("experiment", {})
     scenario = experiment.get("scenario", {})
     runs = index.get("runs", []) if isinstance(index.get("runs"), list) else []
@@ -453,6 +455,7 @@ def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
         "compare_run_ids": compare_run_ids,
         "compare_histories": _compare_histories(experiment_dir, runs, compare_run_ids),
         "timeline": timeline_data,
+        "runtime": _runtime_summary(runtime_data),
         "files": files,
         "readme_url": _file_url(experiment_dir / "README.md", workspace) if (experiment_dir / "README.md").exists() else None,
         "dashboard_url": _file_url(dashboard_file, workspace),
@@ -595,6 +598,45 @@ def _sample_history(rows: list[dict[str, Any]], *, max_points: int) -> list[dict
     if sampled[-1] != rows[-1]:
         sampled.append(rows[-1])
     return sampled
+
+
+def _runtime_summary(runtime_data: dict[str, Any]) -> dict[str, Any]:
+    events = runtime_data.get("events", []) if isinstance(runtime_data.get("events"), list) else []
+    if not events:
+        return {}
+    snapshots: list[dict[str, Any]] = []
+    current_time = None
+    current_events: list[dict[str, Any]] = []
+    for event in events:
+        time_s = float(event.get("time_s", 0.0))
+        if current_time is None or abs(time_s - current_time) < 1e-12:
+            current_time = time_s
+            current_events.append(event)
+            continue
+        snapshots.append(_runtime_snapshot(current_time, current_events))
+        current_time = time_s
+        current_events = [event]
+    if current_events:
+        snapshots.append(_runtime_snapshot(float(current_time or 0.0), current_events))
+    return {
+        "name": runtime_data.get("runtime", {}).get("name"),
+        "duration_s": runtime_data.get("duration_s"),
+        "event_count": runtime_data.get("event_count"),
+        "snapshots": snapshots[:220],
+    }
+
+
+def _runtime_snapshot(time_s: float, events: list[dict[str, Any]]) -> dict[str, Any]:
+    first = events[0] if events else {}
+    modules = [str(item.get("module")) for item in events if item.get("module")]
+    roles = [str(item.get("role")) for item in events if item.get("role")]
+    return {
+        "time_s": time_s,
+        "task": first.get("task"),
+        "process": first.get("process"),
+        "modules": modules,
+        "roles": roles,
+    }
 
 
 def _render_home() -> str:
@@ -1029,7 +1071,7 @@ def _render_home() -> str:
     }
     .replay-readout {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
       padding: 12px;
       border-top: 1px solid var(--line);
@@ -1086,6 +1128,31 @@ def _render_home() -> str:
       bottom: -3px;
       background: #17202a;
       box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+    }
+    .runtime-strip {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+    .runtime-strip h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+    .runtime-strip p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .runtime-modules {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .runtime-modules .chip {
+      min-height: 26px;
+      font-size: 11px;
     }
     a {
       color: var(--accent-strong);
@@ -1505,6 +1572,7 @@ def _render_home() -> str:
       }
       const timeline = Array.isArray(result.timeline?.timeline) ? result.timeline.timeline : [];
       const duration = Number(result.timeline?.duration_s || 0);
+      const runtime = result.runtime || {};
       replayView.innerHTML = `
         <div class="replay-toolbar">
           <label>回放 Run<select id="replay-run">${runIds.map(runId => `<option value="${esc(runId)}">${esc(runId)}</option>`).join('')}</select></label>
@@ -1533,6 +1601,7 @@ def _render_home() -> str:
             <div><span>姿态误差</span><strong id="replay-error">0 deg</strong></div>
             <div><span>当前 Run</span><strong id="replay-run-label">${esc(runIds[0])}</strong></div>
             <div><span>当前模式</span><strong id="replay-mode">—</strong></div>
+            <div><span>当前 Task</span><strong id="replay-task">—</strong></div>
           </div>
         </div>
         <input id="replay-slider" class="replay-slider" type="range" min="0" max="0" step="1" value="0">
@@ -1542,6 +1611,11 @@ def _render_home() -> str:
             <span id="replay-mode-window">${duration > 0 ? `0-${fmt(duration)} s` : '暂无 timeline'}</span>
           </div>
           <div class="timeline-bar" id="timeline-bar"></div>
+        </div>
+        <div class="runtime-strip" id="replay-runtime">
+          <h3>运行时调度</h3>
+          <p id="runtime-process">${runtime.name ? esc(runtime.name) : '暂无 runtime 计划'}</p>
+          <div class="runtime-modules" id="runtime-modules"></div>
         </div>
       `;
       const select = document.getElementById('replay-run');
@@ -1555,6 +1629,7 @@ def _render_home() -> str:
         frameIndex: 0,
         timeline,
         duration,
+        runtimeSnapshots: Array.isArray(runtime.snapshots) ? runtime.snapshots : [],
       };
       ensureReplayScene();
       renderReplayTimeline(timeline, duration);
@@ -1570,6 +1645,7 @@ def _render_home() -> str:
         document.getElementById('replay-error').textContent = `${fmt(sample.attitude_error_deg)} deg`;
         document.getElementById('replay-run-label').textContent = replayState.currentRunId;
         document.getElementById('replay-mode').textContent = activeModeForTime(replayState.timeline, Number(sample.time_s));
+        renderRuntimeSnapshot(activeRuntimeSnapshot(replayState.runtimeSnapshots, Number(sample.time_s)));
         applyReplaySample(sample);
         updateReplayCursor(Number(sample.time_s), replayState.duration);
       };
@@ -1678,6 +1754,25 @@ def _render_home() -> str:
       bar.innerHTML = `${segments}<div id="timeline-cursor" class="timeline-cursor" style="left:0%"></div>`;
     }
 
+    function renderRuntimeSnapshot(snapshot) {
+      const task = document.getElementById('replay-task');
+      const process = document.getElementById('runtime-process');
+      const modules = document.getElementById('runtime-modules');
+      if (!task || !process || !modules) return;
+      if (!snapshot) {
+        task.textContent = '—';
+        process.textContent = '当前时刻没有运行时快照';
+        modules.innerHTML = '<span class="chip">暂无模块</span>';
+        return;
+      }
+      task.textContent = snapshot.task || '—';
+      process.textContent = `${snapshot.process || 'runtime'} / ${fmt(snapshot.time_s)} s`;
+      modules.innerHTML = (snapshot.modules || []).map((name, index) => {
+        const role = snapshot.roles?.[index];
+        return `<span class="chip">${esc(name)}${role ? ` · ${esc(role)}` : ''}</span>`;
+      }).join('') || '<span class="chip">暂无模块</span>';
+    }
+
     function updateReplayCursor(timeS, duration) {
       const cursor = document.getElementById('timeline-cursor');
       if (!cursor || !(duration > 0)) return;
@@ -1690,6 +1785,19 @@ def _render_home() -> str:
     function activeModeForTime(timeline, timeS) {
       const item = (timeline || []).find(entry => Number(entry.start_s || 0) <= timeS && timeS <= Number(entry.stop_s || 0));
       return item?.mode || item?.name || '—';
+    }
+
+    function activeRuntimeSnapshot(snapshots, timeS) {
+      if (!snapshots?.length) return null;
+      let active = snapshots[0];
+      for (const snapshot of snapshots) {
+        if (Number(snapshot.time_s) <= timeS) {
+          active = snapshot;
+        } else {
+          break;
+        }
+      }
+      return active;
     }
 
     async function validatePlan(path) {
