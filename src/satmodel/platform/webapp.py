@@ -405,6 +405,8 @@ def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
     experiment_dir = dashboard_file.parent
     index = _read_json_file(experiment_dir / "index.json")
     manifest = _read_json_file(experiment_dir / "experiment_manifest.json")
+    timeline_name = index.get("mode_timeline")
+    timeline_data = _read_json_file(experiment_dir / str(timeline_name)) if timeline_name else {}
     experiment = manifest.get("experiment", {})
     scenario = experiment.get("scenario", {})
     runs = index.get("runs", []) if isinstance(index.get("runs"), list) else []
@@ -450,6 +452,7 @@ def _dashboard_summary(workspace: Path, dashboard_file: Path) -> dict[str, Any]:
         "worst_run": worst,
         "compare_run_ids": compare_run_ids,
         "compare_histories": _compare_histories(experiment_dir, runs, compare_run_ids),
+        "timeline": timeline_data,
         "files": files,
         "readme_url": _file_url(experiment_dir / "README.md", workspace) if (experiment_dir / "README.md").exists() else None,
         "dashboard_url": _file_url(dashboard_file, workspace),
@@ -945,11 +948,88 @@ def _render_home() -> str:
     .replay-canvas {
       width: 100%;
       height: 300px;
-      display: block;
+      display: grid;
+      place-items: center;
+      perspective: 1000px;
+      overflow: hidden;
+      position: relative;
+    }
+    .replay-canvas::before {
+      content: "";
+      position: absolute;
+      inset: auto 10% 24px 10%;
+      height: 120px;
+      background: radial-gradient(ellipse at center, rgba(18, 78, 120, 0.18), rgba(18, 78, 120, 0) 68%);
+      pointer-events: none;
+    }
+    .replay-world {
+      width: 260px;
+      height: 220px;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(-18deg) rotateZ(4deg);
+    }
+    .replay-grid {
+      position: absolute;
+      inset: 64% 2% -8% 2%;
+      border-radius: 50%;
+      border: 1px solid rgba(18, 78, 120, 0.16);
+      transform: rotateX(78deg);
+      box-shadow:
+        0 0 0 24px rgba(18, 78, 120, 0.05),
+        0 0 0 48px rgba(18, 78, 120, 0.035);
+    }
+    .satellite3d {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 82px;
+      height: 82px;
+      transform-style: preserve-3d;
+      transform: translate3d(-50%, -50%, 0);
+    }
+    .sat-body-face {
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(23, 32, 42, 0.22);
+      background: linear-gradient(135deg, #f9fbfd, #dfe9ef);
+      opacity: 0.96;
+    }
+    .face-front { transform: translateZ(24px); }
+    .face-back { transform: rotateY(180deg) translateZ(24px); }
+    .face-right { transform: rotateY(90deg) translateZ(24px); width: 48px; left: 17px; background: linear-gradient(135deg, #d6e2ea, #c5d5df); }
+    .face-left { transform: rotateY(-90deg) translateZ(24px); width: 48px; left: 17px; background: linear-gradient(135deg, #d6e2ea, #c5d5df); }
+    .face-top { transform: rotateX(90deg) translateZ(24px); height: 48px; top: 17px; background: linear-gradient(135deg, #ffffff, #e8f0f4); }
+    .face-bottom { transform: rotateX(-90deg) translateZ(24px); height: 48px; top: 17px; background: linear-gradient(135deg, #d7e3eb, #c6d5de); }
+    .panel3d {
+      position: absolute;
+      top: 26px;
+      width: 94px;
+      height: 28px;
+      border: 1px solid rgba(18, 78, 120, 0.35);
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.16) 9px, transparent 9px, transparent 18px),
+        linear-gradient(135deg, #124e78, #0f6c7b);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14);
+      transform: translateZ(3px);
+    }
+    .panel-left { left: -96px; transform-origin: right center; transform: rotateY(-8deg) translateZ(3px); }
+    .panel-right { right: -96px; transform-origin: left center; transform: rotateY(8deg) translateZ(3px); }
+    .boresight3d {
+      position: absolute;
+      left: 34px;
+      top: -14px;
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 22px solid var(--warm);
+      transform: translateZ(18px);
+      filter: drop-shadow(0 4px 8px rgba(185, 106, 16, 0.28));
     }
     .replay-readout {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       padding: 12px;
       border-top: 1px solid var(--line);
@@ -970,6 +1050,43 @@ def _render_home() -> str:
       width: 100%;
       margin-top: 12px;
     }
+    .timeline-strip {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+    .timeline-legend {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .timeline-bar {
+      position: relative;
+      height: 20px;
+      border-radius: 999px;
+      background: #e8eef4;
+      overflow: hidden;
+    }
+    .timeline-segment {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      min-width: 2px;
+      opacity: 0.95;
+    }
+    .timeline-cursor {
+      position: absolute;
+      top: -3px;
+      width: 2px;
+      bottom: -3px;
+      background: #17202a;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+    }
     a {
       color: var(--accent-strong);
       text-decoration: none;
@@ -984,7 +1101,6 @@ def _render_home() -> str:
       iframe { height: 520px; }
     }
   </style>
-  <script src="https://unpkg.com/three@0.167.1/build/three.min.js"></script>
 </head>
 <body>
   <header>
@@ -1387,6 +1503,8 @@ def _render_home() -> str:
         stopReplayAnimation();
         return;
       }
+      const timeline = Array.isArray(result.timeline?.timeline) ? result.timeline.timeline : [];
+      const duration = Number(result.timeline?.duration_s || 0);
       replayView.innerHTML = `
         <div class="replay-toolbar">
           <label>回放 Run<select id="replay-run">${runIds.map(runId => `<option value="${esc(runId)}">${esc(runId)}</option>`).join('')}</select></label>
@@ -1394,14 +1512,37 @@ def _render_home() -> str:
           <button id="replay-reset" class="secondary" type="button">回到起点</button>
         </div>
         <div class="replay-stage">
-          <div id="replay-canvas" class="replay-canvas"></div>
+          <div id="replay-canvas" class="replay-canvas">
+            <div class="replay-world">
+              <div class="replay-grid"></div>
+              <div id="replay-satellite" class="satellite3d">
+                <div class="sat-body-face face-front"></div>
+                <div class="sat-body-face face-back"></div>
+                <div class="sat-body-face face-right"></div>
+                <div class="sat-body-face face-left"></div>
+                <div class="sat-body-face face-top"></div>
+                <div class="sat-body-face face-bottom"></div>
+                <div class="panel3d panel-left"></div>
+                <div class="panel3d panel-right"></div>
+                <div class="boresight3d"></div>
+              </div>
+            </div>
+          </div>
           <div class="replay-readout">
             <div><span>仿真时间</span><strong id="replay-time">0 s</strong></div>
             <div><span>姿态误差</span><strong id="replay-error">0 deg</strong></div>
             <div><span>当前 Run</span><strong id="replay-run-label">${esc(runIds[0])}</strong></div>
+            <div><span>当前模式</span><strong id="replay-mode">—</strong></div>
           </div>
         </div>
         <input id="replay-slider" class="replay-slider" type="range" min="0" max="0" step="1" value="0">
+        <div class="timeline-strip" id="replay-timeline">
+          <div class="timeline-legend">
+            <span>任务模式时间线</span>
+            <span id="replay-mode-window">${duration > 0 ? `0-${fmt(duration)} s` : '暂无 timeline'}</span>
+          </div>
+          <div class="timeline-bar" id="timeline-bar"></div>
+        </div>
       `;
       const select = document.getElementById('replay-run');
       const slider = document.getElementById('replay-slider');
@@ -1412,8 +1553,11 @@ def _render_home() -> str:
         runIds,
         currentRunId: runIds[0],
         frameIndex: 0,
+        timeline,
+        duration,
       };
       ensureReplayScene();
+      renderReplayTimeline(timeline, duration);
 
       const updateFrame = (frameIndex) => {
         const history = replayState.histories[replayState.currentRunId] || [];
@@ -1425,7 +1569,9 @@ def _render_home() -> str:
         document.getElementById('replay-time').textContent = `${fmt(sample.time_s)} s`;
         document.getElementById('replay-error').textContent = `${fmt(sample.attitude_error_deg)} deg`;
         document.getElementById('replay-run-label').textContent = replayState.currentRunId;
+        document.getElementById('replay-mode').textContent = activeModeForTime(replayState.timeline, Number(sample.time_s));
         applyReplaySample(sample);
+        updateReplayCursor(Number(sample.time_s), replayState.duration);
       };
 
       const updateRun = (runId) => {
@@ -1471,86 +1617,27 @@ def _render_home() -> str:
 
     function ensureReplayScene() {
       const host = document.getElementById('replay-canvas');
-      if (!host) return;
-      if (typeof THREE === 'undefined') {
-        host.innerHTML = '<div class="empty" style="margin:12px">Three.js 未加载，暂时无法显示三维姿态回放。</div>';
-        return;
-      }
-      if (window.__satmodelReplay?.host === host) {
-        resizeReplayRenderer();
-        return;
-      }
-      stopReplayAnimation();
-      host.innerHTML = '';
-      const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
-      renderer.setPixelRatio(window.devicePixelRatio || 1);
-      host.appendChild(renderer.domElement);
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-      camera.position.set(2.8, 2.2, 4.8);
-      camera.lookAt(0, 0, 0);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.95);
-      const directional = new THREE.DirectionalLight(0xffffff, 1.2);
-      directional.position.set(3, 3, 2);
-      scene.add(ambient, directional);
-
-      const bodyMaterial = new THREE.MeshStandardMaterial({color: 0xe9f0f5, metalness: 0.2, roughness: 0.5});
-      const panelAMaterial = new THREE.MeshStandardMaterial({color: 0x124e78, metalness: 0.15, roughness: 0.45});
-      const panelBMaterial = new THREE.MeshStandardMaterial({color: 0x0f6c7b, metalness: 0.15, roughness: 0.45});
-      const accentMaterial = new THREE.MeshStandardMaterial({color: 0xb96a10, metalness: 0.35, roughness: 0.3});
-      const group = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.65, 0.8), bodyMaterial);
-      const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.03, 0.58), panelAMaterial);
-      const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.03, 0.58), panelBMaterial);
-      leftPanel.position.set(-1.05, 0, 0);
-      rightPanel.position.set(1.05, 0, 0);
-      const boresight = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 18), accentMaterial);
-      boresight.position.set(0, 0.45, 0);
-      boresight.rotation.z = Math.PI;
-      group.add(body, leftPanel, rightPanel, boresight);
-      scene.add(group);
-      scene.add(new THREE.AxesHelper(2.0));
-
-      const grid = new THREE.GridHelper(8, 8, 0xc9d4e2, 0xe3e9f1);
-      grid.position.y = -1.0;
-      scene.add(grid);
-
+      const satellite = document.getElementById('replay-satellite');
+      if (!host || !satellite) return;
       window.__satmodelReplay = {
         host,
-        renderer,
-        scene,
-        camera,
-        group,
+        satellite,
         timer: null,
       };
-      resizeReplayRenderer();
-      renderer.render(scene, camera);
-    }
-
-    function resizeReplayRenderer() {
-      const replay = window.__satmodelReplay;
-      if (!replay?.host || !replay?.renderer || !replay?.camera) return;
-      const width = replay.host.clientWidth || 640;
-      const height = replay.host.clientHeight || 300;
-      replay.renderer.setSize(width, height, false);
-      replay.camera.aspect = width / Math.max(height, 1);
-      replay.camera.updateProjectionMatrix();
-      replay.renderer.render(replay.scene, replay.camera);
     }
 
     function applyReplaySample(sample) {
       const replay = window.__satmodelReplay;
-      if (!replay?.group || typeof THREE === 'undefined') return;
+      if (!replay?.satellite) return;
       if ([sample.true_qw, sample.true_qx, sample.true_qy, sample.true_qz].every(value => Number.isFinite(Number(value)))) {
-        replay.group.quaternion.set(
+        const [roll, pitch, yaw] = quaternionToEulerDeg(
+          Number(sample.true_qw),
           Number(sample.true_qx),
           Number(sample.true_qy),
           Number(sample.true_qz),
-          Number(sample.true_qw),
         );
+        replay.satellite.style.transform = `translate3d(-50%, -50%, 0) rotateX(${pitch}deg) rotateY(${yaw}deg) rotateZ(${roll}deg)`;
       }
-      replay.renderer.render(replay.scene, replay.camera);
     }
 
     function stopReplayAnimation() {
@@ -1559,6 +1646,50 @@ def _render_home() -> str:
         clearInterval(replay.timer);
         replay.timer = null;
       }
+    }
+
+    function quaternionToEulerDeg(w, x, y, z) {
+      const sinr = 2 * (w * x + y * z);
+      const cosr = 1 - 2 * (x * x + y * y);
+      const roll = Math.atan2(sinr, cosr);
+      const sinp = 2 * (w * y - z * x);
+      const pitch = Math.abs(sinp) >= 1 ? Math.sign(sinp) * Math.PI / 2 : Math.asin(sinp);
+      const siny = 2 * (w * z + x * y);
+      const cosy = 1 - 2 * (y * y + z * z);
+      const yaw = Math.atan2(siny, cosy);
+      return [roll, pitch, yaw].map(value => value * 180 / Math.PI);
+    }
+
+    function renderReplayTimeline(timeline, duration) {
+      const bar = document.getElementById('timeline-bar');
+      if (!bar) return;
+      if (!timeline.length || !(duration > 0)) {
+        bar.innerHTML = '<div class="timeline-cursor" style="left:0%"></div>';
+        return;
+      }
+      const colors = ['#124e78', '#0f6c7b', '#b96a10', '#7c9158', '#8f3a2a'];
+      const segments = timeline.map((item, index) => {
+        const start = Number(item.start_s || 0);
+        const stop = Number(item.stop_s || start);
+        const left = start / duration * 100;
+        const width = Math.max((stop - start) / duration * 100, 1);
+        return `<div class="timeline-segment" style="left:${left}%;width:${width}%;background:${colors[index % colors.length]}" title="${esc(item.mode || item.name || 'mode')} ${fmt(start)}-${fmt(stop)} s"></div>`;
+      }).join('');
+      bar.innerHTML = `${segments}<div id="timeline-cursor" class="timeline-cursor" style="left:0%"></div>`;
+    }
+
+    function updateReplayCursor(timeS, duration) {
+      const cursor = document.getElementById('timeline-cursor');
+      if (!cursor || !(duration > 0)) return;
+      const left = Math.max(0, Math.min(100, Number(timeS) / duration * 100));
+      cursor.style.left = `${left}%`;
+      const modeWindow = document.getElementById('replay-mode-window');
+      if (modeWindow) modeWindow.textContent = `${fmt(timeS)} / ${fmt(duration)} s`;
+    }
+
+    function activeModeForTime(timeline, timeS) {
+      const item = (timeline || []).find(entry => Number(entry.start_s || 0) <= timeS && timeS <= Number(entry.stop_s || 0));
+      return item?.mode || item?.name || '—';
     }
 
     async function validatePlan(path) {

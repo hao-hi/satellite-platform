@@ -677,6 +677,7 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     assert result["summary"]["compare_run_ids"] == ["run_000"]
     assert "run_000" in result["summary"]["compare_histories"]
     assert "true_qw" in result["summary"]["compare_histories"]["run_000"][0]
+    assert result["summary"]["timeline"]["timeline"][0]["mode"] == "safe"
     assert result["dashboard_url"] == "/file/results/webapp_plan/dashboard.html"
     assert dashboard_details["scenario_name"] == "platform_smoke"
     assert dashboard_details["best_run_id"] == "run_000"
@@ -684,6 +685,7 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     assert dashboard_details["compare_run_ids"] == ["run_000"]
     assert dashboard_details["compare_histories"]["run_000"][0]["attitude_error_deg"] >= 0.0
     assert dashboard_details["compare_histories"]["run_000"][0]["true_qw"] >= 0.0
+    assert dashboard_details["timeline"]["timeline"][0]["mode"] == "safe"
     assert dashboard_details["files"][-1]["name"] == "dashboard.html"
     assert (workspace / "results" / "webapp_plan" / "dashboard.html").exists()
     assert rediscovered["dashboards"][0]["run_count"] == 1
