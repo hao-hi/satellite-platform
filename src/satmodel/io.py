@@ -161,13 +161,43 @@ class ResultWriter:
             "disturbance_torque_x_nm",
             "disturbance_torque_y_nm",
             "disturbance_torque_z_nm",
+            "wheel_speed_norm_rad_s",
+            "wheel_momentum_fraction",
+            "allocation_error_norm_nm",
         ]
+        disturbance_term_names = sorted(result.disturbance_torque_terms)
+        fieldnames.extend(f"{name}_torque_norm_nm" for name in disturbance_term_names)
         error = result.attitude_error_deg
         reference_track = result.reference_track()
+        wheel_speeds = result.wheel_speeds_rad_s
+        wheel_momentum = result.wheel_momentum_nms
+        wheel_capacity = result.wheel_momentum_capacity_nms
+        allocation_error = result.wheel_allocation_error_nm
+        disturbance_terms = {
+            name: np.asarray(track, dtype=float)
+            for name, track in result.disturbance_torque_terms.items()
+        }
         with path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             for index, time_s in enumerate(result.time):
+                wheel_speed_norm = ""
+                wheel_momentum_fraction = ""
+                allocation_error_norm = ""
+                disturbance_term_norms = {}
+                if wheel_speeds.size and index < len(wheel_speeds):
+                    wheel_speed_norm = float(np.linalg.norm(wheel_speeds[index]))
+                if wheel_momentum.size and wheel_capacity.size and index < len(wheel_momentum) and index < len(wheel_capacity):
+                    fraction = np.abs(wheel_momentum[index]) / np.maximum(np.abs(wheel_capacity[index]), 1e-12)
+                    wheel_momentum_fraction = float(np.max(fraction))
+                if allocation_error.size and index < len(allocation_error):
+                    allocation_error_norm = float(np.linalg.norm(allocation_error[index]))
+                for name in disturbance_term_names:
+                    track = disturbance_terms.get(name)
+                    value = ""
+                    if track is not None and track.size and index < len(track):
+                        value = float(np.linalg.norm(track[index]))
+                    disturbance_term_norms[f"{name}_torque_norm_nm"] = value
                 writer.writerow(
                     {
                         "time_s": float(time_s),
@@ -196,6 +226,10 @@ class ResultWriter:
                         "disturbance_torque_x_nm": float(result.disturbance_torque[index, 0]),
                         "disturbance_torque_y_nm": float(result.disturbance_torque[index, 1]),
                         "disturbance_torque_z_nm": float(result.disturbance_torque[index, 2]),
+                        "wheel_speed_norm_rad_s": wheel_speed_norm,
+                        "wheel_momentum_fraction": wheel_momentum_fraction,
+                        "allocation_error_norm_nm": allocation_error_norm,
+                        **disturbance_term_norms,
                     }
                 )
         return path

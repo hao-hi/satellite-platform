@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_environment_compare",
+    "description": "Curated environment-sensitivity experiment comparing zero and orbital environments for the quick PD baseline.",
+    "tags": ["platform", "library", "environment_sensitivity", "orbital"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "system.environment",
+      "values": ["zero", "orbital"]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/quick_environment_compare"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

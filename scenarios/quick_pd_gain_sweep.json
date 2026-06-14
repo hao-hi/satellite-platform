@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_pd_gain_sweep",
+    "description": "Curated controller gain sweep for the quick PD baseline scenario.",
+    "tags": ["platform", "library", "gain_sweep", "pd"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kp",
+      "values": [0.15, 0.2, 0.25, 0.3]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/quick_pd_gain_sweep"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

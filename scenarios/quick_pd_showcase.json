@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_pd_showcase",
+    "description": "Generated platform experiment for quick_pd_zero.",
+    "tags": [
+      "platform",
+      "generated"
+    ]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kp",
+      "values": [
+        0.15,
+        0.2,
+        0.25
+      ]
+    }
+  ],
+  "outputs": {
+    "root": "results/platform_ui/quick_pd_showcase"
+  },
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "acceptance": {
+    "max_final_error_deg": 20.0,
+    "max_rms_error_deg": 20.0,
+    "max_peak_torque_nm": 0.1
+  }
+}

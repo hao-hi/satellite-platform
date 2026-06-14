@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_fault_sun_transition_2",
+    "description": "Generated platform experiment for cubesat_rw_fault.",
+    "tags": [
+      "platform",
+      "generated"
+    ]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "sweeps": [
+    {
+      "path": "time.seed",
+      "values": [
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "outputs": {
+    "root": "results/platform_ui/cubesat_rw_fault_sun_transition_2"
+  },
+  "runtime": {
+    "template": "single_rate"
+  },
+  "monte_carlo": {
+    "samples": 4,
+    "seed": 10
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  }
+}

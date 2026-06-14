@@ -44,6 +44,7 @@ from satmodel.disturbances import (
     ResidualMagneticTorqueConfig,
     SolarPressureTorque,
     SolarPressureTorqueConfig,
+    disturbance_effectors_from_profile,
     default_leo_disturbance_effectors,
 )
 from satmodel.environment import (
@@ -243,6 +244,7 @@ __all__ = [
     "build_default_system",
     "build_demo_leo_environment",
     "compile_scenario",
+    "disturbance_effectors_from_profile",
     "default_leo_disturbance_effectors",
     "detumble_then_hold_mission",
     "experiment_plan_from_mapping",

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_momentum_management_sweep",
+    "description": "Curated wheel-speed management experiment sweeping reaction-wheel momentum gain.",
+    "tags": ["platform", "library", "momentum_management", "reaction-wheel"]
+  },
+  "scenario": "cubesat_rw_momentum_management.json",
+  "sweeps": [
+    {
+      "path": "actuators.reaction_wheels.momentum_gain",
+      "values": [0.0, 0.02, 0.05, 0.1]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/cubesat_rw_momentum_management_sweep"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

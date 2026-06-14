@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_pd_acceptance_gate",
+    "description": "Curated strict-acceptance experiment for the quick PD baseline, used to compare which gain settings still pass a tighter gate.",
+    "tags": ["platform", "library", "acceptance", "validation", "pd", "strict_gate"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kp",
+      "values": [0.12, 0.15, 0.2, 0.25, 0.3]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/quick_pd_acceptance_gate"
+  },
+  "acceptance": {
+    "max_final_error_deg": 20.0,
+    "max_rms_error_deg": 20.0,
+    "max_peak_torque_nm": 0.1
+  }
+}

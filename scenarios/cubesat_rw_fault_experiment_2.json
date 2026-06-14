@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_fault_experiment_2",
+    "description": "Generated platform experiment for cubesat_rw_fault.",
+    "tags": [
+      "platform",
+      "generated"
+    ]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kp",
+      "values": [
+        0.15,
+        0.2,
+        0.25
+      ]
+    }
+  ],
+  "outputs": {
+    "root": "results/platform_ui/cubesat_rw_fault_experiment_2"
+  },
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  }
+}

@@ -10,6 +10,7 @@ import numpy as np
 from satmodel.config.schema import ScenarioSpec
 from satmodel.actuators import ReactionWheelArrayConfig, ReactionWheelConfig
 from satmodel.controllers import LADRCConfig, LADRCController, PDController
+from satmodel.disturbances import disturbance_effectors_from_profile
 from satmodel.environment import (
     CenteredDipoleMagneticField,
     CircularOrbitProvider,
@@ -184,12 +185,21 @@ def _apply_sensors(system, spec: ScenarioSpec):
 
 def _system_from_spec(spec: ScenarioSpec):
     environment = _environment_from_spec(spec)
+    disturbances = None
+    if spec.system.disturbance_profile != "default":
+        geometry = None
+        if spec.system.builder == "cubesat_reaction_wheel":
+            physical_config = _physical_config_from_spec(spec)
+            geometry = None if physical_config is None else physical_config.geometry
+        disturbances = disturbance_effectors_from_profile(spec.system.disturbance_profile, geometry=geometry)
     kwargs = {
         "controller": _controller_from_spec(spec),
         "identify_inertia": spec.system.identify_inertia,
     }
     if environment is not None:
         kwargs["environment"] = environment
+    if disturbances is not None:
+        kwargs["disturbances"] = disturbances
     if spec.system.builder in {"default", "ideal_torque"}:
         system = build_default_system(**kwargs)
         _apply_sensors(system, spec)

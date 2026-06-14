@@ -87,6 +87,7 @@ class ScenarioSystemSpec:
     controller: str | None = "pd"
     identify_inertia: bool = False
     environment: str = "demo"
+    disturbance_profile: str = "default"
 
     def __post_init__(self):
         self.builder = str(self.builder)
@@ -94,12 +95,26 @@ class ScenarioSystemSpec:
             self.controller = str(self.controller)
         self.identify_inertia = bool(self.identify_inertia)
         self.environment = str(self.environment)
+        self.disturbance_profile = str(self.disturbance_profile)
         if self.builder not in {"default", "ideal_torque", "cubesat_reaction_wheel"}:
             raise ValueError("system.builder must be 'default', 'ideal_torque', or 'cubesat_reaction_wheel'")
         if self.controller not in {"pd", "ladrc", "open_loop", None}:
             raise ValueError("system.controller must be 'pd', 'ladrc', 'open_loop', or null")
         if self.environment not in {"demo", "zero", "orbital"}:
             raise ValueError("system.environment must be 'demo', 'zero', or 'orbital'")
+        if self.disturbance_profile not in {
+            "default",
+            "all",
+            "gravity_gradient_only",
+            "residual_magnetic_only",
+            "aerodynamic_only",
+            "solar_pressure_only",
+        }:
+            raise ValueError(
+                "system.disturbance_profile must be 'default', 'all', "
+                "'gravity_gradient_only', 'residual_magnetic_only', "
+                "'aerodynamic_only', or 'solar_pressure_only'"
+            )
 
 
 @dataclass
@@ -467,7 +482,11 @@ def scenario_from_mapping(values: dict[str, Any]) -> ScenarioSpec:
     if "time" in data:
         _reject_unknown("time", dict(data["time"]), {"duration_s", "dt_s", "seed"})
     if "system" in data:
-        _reject_unknown("system", dict(data["system"]), {"builder", "controller", "identify_inertia", "environment"})
+        _reject_unknown(
+            "system",
+            dict(data["system"]),
+            {"builder", "controller", "identify_inertia", "environment", "disturbance_profile"},
+        )
     if "controller" in data:
         _reject_unknown(
             "controller",

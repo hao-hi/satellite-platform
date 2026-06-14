@@ -157,3 +157,33 @@ def default_leo_disturbance_effectors(
             ("solar_pressure", SolarPressureTorque(box)),
         )
     )
+
+
+def disturbance_effectors_from_profile(
+    profile: str = "default",
+    geometry: BoxGeometry | None = None,
+) -> DisturbanceEffectorSet:
+    """Build a named lightweight disturbance subset for experiment studies."""
+
+    box = BoxGeometry(np.array([0.10, 0.20, 0.30])) if geometry is None else geometry
+    normalized = str(profile or "default")
+    if normalized in {"default", "all"}:
+        names = ("gravity_gradient", "residual_magnetic", "aerodynamic", "solar_pressure")
+    elif normalized == "gravity_gradient_only":
+        names = ("gravity_gradient",)
+    elif normalized == "residual_magnetic_only":
+        names = ("residual_magnetic",)
+    elif normalized == "aerodynamic_only":
+        names = ("aerodynamic",)
+    elif normalized == "solar_pressure_only":
+        names = ("solar_pressure",)
+    else:
+        raise ValueError(f"unsupported disturbance profile: {profile}")
+
+    builders = {
+        "gravity_gradient": lambda: GravityGradientTorque(),
+        "residual_magnetic": lambda: ResidualMagneticTorque(),
+        "aerodynamic": lambda: AerodynamicTorque(box),
+        "solar_pressure": lambda: SolarPressureTorque(box),
+    }
+    return DisturbanceEffectorSet(tuple((name, builders[name]()) for name in names))

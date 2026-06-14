@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_disturbance_capability_tradeoff",
+    "description": "Curated combined experiment comparing disturbance profiles against reaction-wheel torque capability on the CubeSat orbital baseline.",
+    "tags": ["platform", "library", "disturbance_capability", "reaction-wheel", "orbital"]
+  },
+  "scenario": "cubesat_rw_orbital_baseline.json",
+  "sweeps": [
+    {
+      "path": "system.disturbance_profile",
+      "values": [
+        "residual_magnetic_only",
+        "aerodynamic_only",
+        "all"
+      ]
+    },
+    {
+      "path": "actuators.reaction_wheels.max_torque_nm",
+      "values": [0.003, 0.005, 0.007]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/cubesat_rw_disturbance_capability_tradeoff"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

@@ -383,6 +383,43 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
       border-radius: 6px;
     }
     .runtime-list table th { top: 0; }
+    .details {
+      display: grid;
+      gap: 10px;
+    }
+    .details > div {
+      border: 1px solid #e7ebf1;
+      border-radius: 6px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+    .details strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .insight-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #d4dbe7;
+      background: #fff;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
     .empty {
       color: var(--muted);
       padding: 18px;
@@ -395,6 +432,7 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
     @media (max-width: 980px) {
       main { padding: 14px; }
       .stats, .layout, .toolbar, .vizbar, .viz-grid { grid-template-columns: 1fr; }
+      .insight-grid { grid-template-columns: 1fr; }
       th { position: static; }
       .segment { grid-template-columns: 90px minmax(0, 1fr); }
       .segment .time { grid-column: 1 / -1; }
@@ -443,6 +481,10 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
         </section>
       </div>
       <div>
+        <section>
+          <h2>诊断摘要</h2>
+          <div id="diagnostics"></div>
+        </section>
         <section>
           <h2>任务模式时间线</h2>
           <div id="timeline"></div>
@@ -554,6 +596,20 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
         container.innerHTML = '<div class="empty">暂无时序数据。请确认 run 目录包含 time_history.csv。</div>';
         return;
       }
+      const hasWheelSeries = history.some(row => numeric(row.wheel_speed_norm_rad_s) || numeric(row.wheel_momentum_fraction) || numeric(row.allocation_error_norm_nm));
+      const hasDisturbanceSeries = history.some(row => numeric(row.disturbance_torque_x_nm) || numeric(row.disturbance_torque_y_nm) || numeric(row.disturbance_torque_z_nm));
+      const disturbanceTerms = disturbanceBudgetSeries(history);
+      const extraPlots = [
+        hasWheelSeries ? `
+            <div><div class="plot-title"><strong>轮速与动量管理</strong><span>wheel speed / momentum / allocation</span></div><svg class="line-chart" id="wheel-chart"></svg></div>
+        ` : '',
+        hasDisturbanceSeries ? `
+            <div><div class="plot-title"><strong>扰动力矩预算</strong><span>disturbance torque x / y / z</span></div><svg class="line-chart" id="disturbance-chart"></svg></div>
+        ` : '',
+        disturbanceTerms.length ? `
+            <div><div class="plot-title"><strong>环境扰动分解</strong><span>gravity-gradient / magnetic / aero / srp</span></div><svg class="line-chart" id="disturbance-budget-chart"></svg></div>
+        ` : '',
+      ].join('');
       container.innerHTML = `
         <div class="viz-grid">
           <div class="animation-panel">
@@ -579,6 +635,7 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
             <div><div class="plot-title"><strong>姿态误差</strong><span>attitude_error_deg</span></div><svg class="line-chart" id="attitude-chart"></svg></div>
             <div><div class="plot-title"><strong>角速度</strong><span>omega_x/y/z_rad_s</span></div><svg class="line-chart" id="omega-chart"></svg></div>
             <div><div class="plot-title"><strong>控制/执行力矩</strong><span>commanded 与 applied torque</span></div><svg class="line-chart" id="torque-chart"></svg></div>
+            ${extraPlots}
           </div>
         </div>`;
       drawLineChart('attitude-chart', history, [
@@ -593,6 +650,23 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
         {key: 'commanded_torque_x_nm', label: 'cmd x', color: '#6f4aa8'},
         {key: 'applied_torque_x_nm', label: 'act x', color: '#b42318'},
       ]);
+      if (hasWheelSeries) {
+        drawLineChart('wheel-chart', history, [
+          {key: 'wheel_speed_norm_rad_s', label: 'wheel speed norm', color: '#087f8c'},
+          {key: 'wheel_momentum_fraction', label: 'momentum fraction', color: '#b56b00'},
+          {key: 'allocation_error_norm_nm', label: 'allocation error', color: '#6f4aa8'},
+        ]);
+      }
+      if (hasDisturbanceSeries) {
+        drawLineChart('disturbance-chart', history, [
+          {key: 'disturbance_torque_x_nm', label: 'dist x', color: '#ab2d2d'},
+          {key: 'disturbance_torque_y_nm', label: 'dist y', color: '#2364aa'},
+          {key: 'disturbance_torque_z_nm', label: 'dist z', color: '#087f8c'},
+        ]);
+      }
+      if (disturbanceTerms.length) {
+        drawLineChart('disturbance-budget-chart', history, disturbanceTerms);
+      }
       updateAnimationFrame(0);
     }
 
@@ -700,6 +774,216 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
       document.getElementById('runs').innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
     }
 
+    function acceptanceReasonLabel(reason) {
+      const mapping = {
+        max_final_error_deg: '末端误差超限',
+        max_rms_error_deg: 'RMS 误差超限',
+        max_peak_torque_nm: '峰值力矩超限',
+      };
+      return mapping[reason] || reason || '未说明';
+    }
+
+    function failureReasons(row) {
+      const raw = String(row.failed_acceptance || '').trim();
+      if (!raw) return [];
+      return raw.split(';').map(item => item.trim()).filter(Boolean);
+    }
+
+    function aggregateFailureReasons() {
+      const counts = new Map();
+      rows.forEach(row => {
+        failureReasons(row).forEach(reason => {
+          counts.set(reason, (counts.get(reason) || 0) + 1);
+        });
+      });
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function parameterLabel(name) {
+      const raw = String(name || '').replace(/^param_/, '');
+      const labels = {
+        'controller.pd_kp': '比例增益 pd_kp',
+        'controller.pd_kd': '微分增益 pd_kd',
+        'system.controller': '控制器类型',
+        'system.environment': '环境模型',
+        'system.disturbance_profile': '扰动配置模板',
+        'sensors.gyro.noise_std_rad_s': '陀螺噪声强度',
+        'time.seed': '随机种子',
+        'monte_carlo.sample': 'Monte Carlo 样本序号',
+        'actuators.reaction_wheels.max_torque_nm': '轮组最大力矩',
+        'actuators.reaction_wheels.momentum_gain': '轮组动量管理增益',
+      };
+      return labels[raw] || raw;
+    }
+
+    function disturbanceTermLabel(key) {
+      const raw = String(key || '').replace(/_torque_norm_nm$/, '');
+      const labels = {
+        gravity_gradient: '重力梯度',
+        residual_magnetic: '残余磁矩',
+        aerodynamic: '气动',
+        solar_pressure: '太阳压',
+      };
+      return labels[raw] || raw;
+    }
+
+    function disturbanceBudgetSeries(history) {
+      const row = (history || [])[0] || {};
+      const columns = Object.keys(row).filter(key => key.endsWith('_torque_norm_nm') && !key.startsWith('disturbance_'));
+      const colors = ['#6f4aa8', '#ab2d2d', '#2364aa', '#087f8c', '#b56b00', '#247a48'];
+      return columns.map((key, index) => ({
+        key,
+        label: disturbanceTermLabel(key),
+        color: colors[index % colors.length],
+      })).filter(series => history.some(item => numeric(item[series.key])));
+    }
+
+    function parameterEntriesForRow(row) {
+      return Object.entries(row || {}).filter(([key, value]) =>
+        key.startsWith('param_') && value !== null && value !== undefined && value !== ''
+      );
+    }
+
+    function parameterDiffSummary(best, worst) {
+      const bestParams = new Map(parameterEntriesForRow(best));
+      const diffs = parameterEntriesForRow(worst)
+        .filter(([key, value]) => String(bestParams.get(key) ?? '') !== String(value ?? ''))
+        .slice(0, 3);
+      if (!diffs.length) return '';
+      return diffs.map(([key, value]) => `${parameterLabel(key)}=${value}`).join('，');
+    }
+
+    function experimentTheme() {
+      const params = index.parameter_columns || [];
+      if (params.includes('param_system.controller')) return '控制器 benchmark';
+      if (params.includes('param_system.environment')) return '环境敏感性';
+      if (params.includes('param_system.disturbance_profile')) return '扰动分解';
+      if (params.includes('param_sensors.gyro.noise_std_rad_s')) return '测量敏感性';
+      if (params.includes('param_actuators.reaction_wheels.momentum_gain')) return '轮速管理';
+      if (params.includes('param_actuators.reaction_wheels.max_torque_nm')) return '执行器边界';
+      if (params.includes('param_controller.pd_kp') || params.includes('param_controller.pd_kd')) return '控制器整定';
+      if (params.includes('param_time.seed') || params.includes('param_monte_carlo.sample')) return '鲁棒性';
+      if ((data.timeline?.timeline || []).length) return '任务模式切换';
+      return '通用实验';
+    }
+
+    function experimentObservation(best, worst) {
+      if (best['param_system.controller']) {
+        return `当前最佳控制器为 ${best['param_system.controller']}，可重点对比它与 ${worst['param_system.controller'] || '另一控制器'} 的误差与力矩差异。`;
+      }
+      if (best['param_system.environment']) {
+        return `当前最佳环境配置为 ${best['param_system.environment']}，建议重点比较 orbital 与 zero 环境下的误差和扰动力矩预算差异。`;
+      }
+      if (best['param_system.disturbance_profile']) {
+        return `当前最佳扰动配置为 ${best['param_system.disturbance_profile']}，建议继续比较不同扰动模板下主导扰动项和误差退化顺序。`;
+      }
+      if (best['param_sensors.gyro.noise_std_rad_s']) {
+        return `当前最佳测量质量对应的陀螺噪声为 ${best['param_sensors.gyro.noise_std_rad_s']} rad/s，建议关注最高噪声档位下的误差退化。`;
+      }
+      if (best['param_actuators.reaction_wheels.momentum_gain'] !== undefined && best['param_actuators.reaction_wheels.momentum_gain'] !== '') {
+        return `当前最优动量管理增益为 ${best['param_actuators.reaction_wheels.momentum_gain']}，建议结合轮速与分配误差一并判断。`;
+      }
+      if (best['param_actuators.reaction_wheels.max_torque_nm']) {
+        return `当前最优执行器能力为 ${best['param_actuators.reaction_wheels.max_torque_nm']} Nm，可继续联动饱和与轮速变化一起判断。`;
+      }
+      return `当前最佳 run 为 ${best.run_id || index.best_run_id || '—'}，最佳末端误差 ${fmt(best.final_error_deg)} deg。`;
+    }
+
+    function peakHistoryValue(keys) {
+      let peak = null;
+      Object.values(histories).forEach(history => {
+        (history || []).forEach(row => {
+          const values = keys.map(key => Number(row[key]));
+          if (values.some(value => Number.isNaN(value))) return;
+          const norm = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
+          peak = peak === null ? norm : Math.max(peak, norm);
+        });
+      });
+      return peak;
+    }
+
+    function peakHistoryScalar(key) {
+      let peak = null;
+      Object.values(histories).forEach(history => {
+        (history || []).forEach(row => {
+          const value = Number(row[key]);
+          if (Number.isNaN(value)) return;
+          peak = peak === null ? value : Math.max(peak, value);
+        });
+      });
+      return peak;
+    }
+
+    function dominantDisturbanceText() {
+      const terms = disturbanceBudgetSeries(histories[activeRun] || []);
+      if (!terms.length) return '当前结果未提供环境扰动分解列。';
+      const peaks = terms
+        .map(series => ({label: series.label, peak: peakHistoryScalar(series.key)}))
+        .filter(item => item.peak !== null);
+      if (!peaks.length) return '当前结果未提供可用的环境扰动分解数据。';
+      peaks.sort((a, b) => Number(b.peak) - Number(a.peak));
+      const lead = peaks[0];
+      const rest = peaks.slice(1, 3).map(item => `${item.label} ${fmt(item.peak)} N m`).join('，');
+      return `${lead.label} 当前峰值最高，为 ${fmt(lead.peak)} N m。${rest ? `其后依次为 ${rest}。` : ''}`;
+    }
+
+    function worstRunExplanation(best, worst) {
+      if (!worst || !worst.run_id) return '当前没有可解释的最差 run。';
+      const reasons = failureReasons(worst);
+      const diffText = parameterDiffSummary(best, worst);
+      const theme = experimentTheme();
+      const parts = [`最差 run 为 ${worst.run_id}，末端误差 ${fmt(worst.final_error_deg)} deg。`];
+      if (reasons.length) {
+        parts.push(`它的主要验收问题是 ${reasons.map(acceptanceReasonLabel).join('、')}。`);
+      }
+      if (diffText) {
+        parts.push(`相对最佳 run，它的关键参数差异是 ${diffText}。`);
+      } else if (worst.run_id !== best.run_id) {
+        parts.push('它与最佳 run 没有明显的显式参数差异，更可能是随机样本、环境扰动或运行边界造成的退化。');
+      }
+      if (theme === '环境敏感性' && worst['param_system.environment']) {
+        parts.push(`当前最差环境配置为 ${worst['param_system.environment']}，建议重点联动环境扰动分解图一起看。`);
+      } else if (theme === '扰动分解' && worst['param_system.disturbance_profile']) {
+        parts.push(`当前最差扰动模板为 ${worst['param_system.disturbance_profile']}，建议继续结合主导扰动项和姿态误差曲线确认是哪类环境项在放大退化。`);
+      } else if (theme === '鲁棒性' && (worst['param_time.seed'] || worst['param_monte_carlo.sample'])) {
+        parts.push('这更像是随机样本触发的边界工况，适合回看该 run 的误差时序和扰动峰值。');
+      } else if (theme === '测量敏感性' && worst['param_sensors.gyro.noise_std_rad_s']) {
+        parts.push(`当前最差噪声档位为 ${worst['param_sensors.gyro.noise_std_rad_s']} rad/s，可继续确认误差是否在观测链上被放大。`);
+      }
+      return parts.join('');
+    }
+
+    function timelineSummary() {
+      const timeline = data.timeline?.timeline || [];
+      if (!timeline.length) return '暂无任务模式时间线。';
+      return `共 ${timeline.length} 段，模式顺序：${timeline.map(item => item.mode || item.name || 'mode').join(' -> ')}。`;
+    }
+
+    function renderDiagnostics() {
+      const host = document.getElementById('diagnostics');
+      const failures = aggregateFailureReasons();
+      const peakOmega = peakHistoryValue(['omega_x_rad_s', 'omega_y_rad_s', 'omega_z_rad_s']);
+      const peakAppliedTorque = peakHistoryValue(['applied_torque_x_nm', 'applied_torque_y_nm', 'applied_torque_z_nm']);
+      const peakDisturbance = peakHistoryValue(['disturbance_torque_x_nm', 'disturbance_torque_y_nm', 'disturbance_torque_z_nm']);
+      const best = rows.find(row => row.run_id === index.best_run_id) || rows[0] || {};
+      const worst = [...rows].sort((a, b) => Number(b.final_error_deg || 0) - Number(a.final_error_deg || 0))[0] || {};
+      const parameterText = (index.parameter_columns || []).map(parameterLabel).join(' / ') || '未显式给出';
+      host.innerHTML = `
+        <div class="details">
+          <div><strong>实验导读</strong><div class="insight-grid">
+            <div><strong>实验类型</strong><div class="meta">${experimentTheme()} · 变量 ${parameterText}</div></div>
+            <div><strong>当前观察</strong><div class="meta">${experiment.metadata?.description || '当前实验重点是比较不同配置对闭环稳定性和控制性能的影响。'} ${experimentObservation(best, worst)}</div></div>
+          </div></div>
+          <div><strong>验收失败原因</strong><div class="tags">${failures.length ? failures.map(([reason, count]) => `<span class="tag">${acceptanceReasonLabel(reason)} × ${count}</span>`).join('') : '<span class="tag">当前没有失败 run</span>'}</div></div>
+          <div><strong>动态峰值摘要</strong><div class="meta">角速度峰值 ${fmt(peakOmega)} rad/s，执行力矩峰值 ${fmt(peakAppliedTorque)} N m，扰动力矩峰值 ${fmt(peakDisturbance)} N m。</div></div>
+          <div><strong>主导扰动项</strong><div class="meta">${dominantDisturbanceText()}</div></div>
+          <div><strong>最佳 run 摘要</strong><div class="meta">${best.run_id || '—'} / 末端误差 ${fmt(best.final_error_deg)} deg / RMS ${fmt(best.rms_error_deg)} deg / 峰值力矩 ${fmt(best.peak_torque_nm)} N m</div></div>
+          <div><strong>最差 run 解释</strong><div class="meta">${worstRunExplanation(best, worst)}</div></div>
+          <div><strong>任务与调度</strong><div class="meta">${timelineSummary()} ${data.runtime?.event_count ? `运行时共 ${data.runtime.event_count} 个事件。` : '暂无运行时调度。'}</div></div>
+        </div>
+      `;
+    }
+
     function renderTimeline() {
       const container = document.getElementById('timeline');
       const timeline = data.timeline?.timeline || [];
@@ -759,6 +1043,7 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
     document.getElementById('play').addEventListener('click', toggleAnimation);
     document.getElementById('reset').addEventListener('click', resetAnimation);
     render();
+    renderDiagnostics();
     renderVisualization();
     renderTimeline();
     renderRuntime();

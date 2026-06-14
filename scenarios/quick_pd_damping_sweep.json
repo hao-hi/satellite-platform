@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_pd_damping_sweep",
+    "description": "Curated damping sweep for the quick PD baseline scenario.",
+    "tags": ["platform", "library", "damping_sweep", "pd"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kd",
+      "values": [0.15, 0.25, 0.35, 0.45]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/quick_pd_damping_sweep"
+  },
+  "acceptance": {
+    "max_final_error_deg": 35.0,
+    "max_rms_error_deg": 35.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

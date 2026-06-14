@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_fault_seed_mc",
+    "description": "Curated Monte Carlo robustness experiment for the reaction-wheel fault scenario.",
+    "tags": ["platform", "library", "monte_carlo", "fault", "robustness"]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "monte_carlo": {
+    "samples": 8,
+    "seed": 20
+  },
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/cubesat_rw_fault_seed_mc"
+  },
+  "acceptance": {
+    "max_final_error_deg": 60.0,
+    "max_rms_error_deg": 60.0,
+    "max_peak_torque_nm": 0.08
+  }
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 import numpy as np
@@ -301,13 +302,41 @@ class SimulationResult:
         err = self.errors_to(reference)
         torque_norm = np.linalg.norm(self.applied_torque, axis=1)
         integral = getattr(np, "trapezoid", np.trapz)
-        return {
+        metrics = {
             "initial_error_deg": float(err[0]),
             "final_error_deg": float(err[-1]),
             "rms_error_deg": float(np.sqrt(np.mean(err**2))),
             "effort_nms": float(integral(torque_norm, self.time)),
             "peak_torque_nm": float(np.max(np.abs(self.applied_torque))),
         }
+        disturbance_norm = np.linalg.norm(self.disturbance_torque, axis=1)
+        if disturbance_norm.size:
+            metrics["peak_disturbance_torque_nm"] = float(np.max(disturbance_norm))
+            metrics["mean_disturbance_torque_nm"] = float(np.mean(disturbance_norm))
+        for name, track in self.disturbance_torque_terms.items():
+            term_track = np.asarray(track, dtype=float)
+            if term_track.size == 0:
+                continue
+            term_norm = np.linalg.norm(term_track, axis=1)
+            safe = re.sub(r"[^a-zA-Z0-9_]+", "_", str(name)).strip("_") or "disturbance"
+            metrics[f"peak_{safe}_torque_nm"] = float(np.max(term_norm))
+            metrics[f"mean_{safe}_torque_nm"] = float(np.mean(term_norm))
+        wheel_speeds = self.wheel_speeds_rad_s
+        if wheel_speeds.size:
+            speed_norm = np.linalg.norm(wheel_speeds, axis=1)
+            metrics["peak_wheel_speed_rad_s"] = float(np.max(np.abs(wheel_speeds)))
+            metrics["final_wheel_speed_norm_rad_s"] = float(speed_norm[-1])
+            metrics["mean_wheel_speed_norm_rad_s"] = float(np.mean(speed_norm))
+        wheel_momentum = self.wheel_momentum_nms
+        wheel_capacity = self.wheel_momentum_capacity_nms
+        if wheel_momentum.size and wheel_capacity.size:
+            fraction = np.abs(wheel_momentum) / np.maximum(np.abs(wheel_capacity), 1e-12)
+            metrics["peak_wheel_momentum_fraction"] = float(np.max(fraction))
+        allocation_error = self.wheel_allocation_error_nm
+        if allocation_error.size:
+            allocation_norm = np.linalg.norm(allocation_error, axis=1)
+            metrics["peak_allocation_error_nm"] = float(np.max(allocation_norm))
+        return metrics
 
     def _wheel_track(self, name: str) -> np.ndarray:
         if not self.actuator_telemetry:

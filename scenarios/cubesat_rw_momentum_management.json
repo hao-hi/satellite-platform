@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_momentum_management",
+    "description": "1U CubeSat reaction-wheel scenario prepared for wheel-speed and momentum-management studies.",
+    "tags": ["platform", "cubesat", "reaction-wheel", "momentum-management"]
+  },
+  "time": {
+    "duration_s": 6.0,
+    "dt_s": 0.02,
+    "seed": 9
+  },
+  "system": {
+    "builder": "cubesat_reaction_wheel",
+    "controller": "pd",
+    "identify_inertia": false,
+    "environment": "orbital"
+  },
+  "controller": {
+    "pd_kp": 0.05,
+    "pd_kd": 0.02
+  },
+  "sensors": {
+    "attitude": {
+      "noise_std_rad": 0.0006
+    },
+    "gyro": {
+      "noise_std_rad_s": 0.001,
+      "bias_std_rad_s": 0.002,
+      "bias_rw_scale": 0.02
+    }
+  },
+  "environment": {
+    "epoch_utc": "2026-01-01T00:00:00Z",
+    "sun_vector_eci": [1.0, 0.2, 0.1],
+    "orbit": {
+      "provider": "keplerian",
+      "semi_major_axis_m": 6878137.0,
+      "eccentricity": 0.001,
+      "inclination_deg": 97.6,
+      "raan_deg": 15.0,
+      "arg_periapsis_deg": 0.0,
+      "mean_anomaly0_deg": 10.0
+    }
+  },
+  "actuators": {
+    "reaction_wheels": {
+      "layout": "pyramid_4wheel",
+      "spin_inertia_kgm2": 0.000026,
+      "max_torque_nm": 0.007,
+      "max_speed_rad_s": 837.758041,
+      "initial_speeds_rad_s": [120.0, -90.0, 70.0, -55.0],
+      "allocation": "nullspace_momentum",
+      "momentum_reference_rad_s": 0.0,
+      "momentum_gain": 0.0,
+      "wheel_torque_weights": 1.0
+    }
+  },
+  "initial_state": {
+    "use_default": true
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  },
+  "outputs": {
+    "root": "results/platform/cubesat_rw_momentum_management",
+    "save_manifest_json": true,
+    "save_metrics_csv": true,
+    "save_time_history_csv": true,
+    "save_events_csv": true,
+    "save_markdown_report": true
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_controller_benchmark_orbital",
+    "description": "Orbital-environment benchmark baseline prepared for PD and LADRC comparison under lightweight disturbance conditions.",
+    "tags": ["platform", "benchmark", "controller", "orbital", "pd", "ladrc"]
+  },
+  "time": {
+    "duration_s": 3.0,
+    "dt_s": 0.02,
+    "seed": 8
+  },
+  "system": {
+    "builder": "default",
+    "controller": "pd",
+    "identify_inertia": false,
+    "environment": "orbital"
+  },
+  "controller": {
+    "pd_kp": 1.5,
+    "pd_kd": 0.35,
+    "ladrc_omega_c": 4.5,
+    "ladrc_omega_o": 8.5,
+    "ladrc_adapt_b0_from_inertia": true
+  },
+  "sensors": {
+    "attitude": {
+      "noise_std_rad": 0.0006
+    },
+    "gyro": {
+      "noise_std_rad_s": 0.001,
+      "bias_std_rad_s": 0.002,
+      "bias_rw_scale": 0.02
+    }
+  },
+  "environment": {
+    "epoch_utc": "2026-01-01T00:00:00Z",
+    "sun_vector_eci": [1.0, 0.2, 0.1],
+    "orbit": {
+      "provider": "keplerian",
+      "semi_major_axis_m": 6878137.0,
+      "eccentricity": 0.001,
+      "inclination_deg": 97.6,
+      "raan_deg": 15.0,
+      "arg_periapsis_deg": 0.0,
+      "mean_anomaly0_deg": 10.0
+    }
+  },
+  "initial_state": {
+    "use_default": true
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  },
+  "outputs": {
+    "root": "results/platform/quick_controller_benchmark_orbital",
+    "save_manifest_json": true,
+    "save_metrics_csv": true,
+    "save_time_history_csv": true,
+    "save_events_csv": true,
+    "save_markdown_report": true
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_disturbance_breakdown",
+    "description": "Curated orbital disturbance-breakdown experiment sweeping lightweight disturbance profiles on the CubeSat reaction-wheel baseline.",
+    "tags": ["platform", "library", "disturbance_breakdown", "orbital", "reaction-wheel"]
+  },
+  "scenario": "cubesat_rw_orbital_baseline.json",
+  "sweeps": [
+    {
+      "path": "system.disturbance_profile",
+      "values": [
+        "gravity_gradient_only",
+        "residual_magnetic_only",
+        "aerodynamic_only",
+        "solar_pressure_only",
+        "all"
+      ]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/cubesat_rw_disturbance_breakdown"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

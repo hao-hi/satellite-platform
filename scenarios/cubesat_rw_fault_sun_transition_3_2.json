@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_fault_sun_transition_3_2",
+    "description": "Generated platform experiment for cubesat_rw_fault.",
+    "tags": [
+      "platform",
+      "generated"
+    ]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "sweeps": [
+    {
+      "path": "actuators.reaction_wheels[0].max_torque_nm",
+      "values": [
+        0.002,
+        0.004,
+        0.006
+      ]
+    }
+  ],
+  "outputs": {
+    "root": "results/platform_ui/cubesat_rw_fault_sun_transition_3_2"
+  },
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  }
+}

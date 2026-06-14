@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "quick_controller_benchmark_compare",
+    "description": "Curated controller benchmark comparing PD and LADRC under the same baseline scenario.",
+    "tags": ["platform", "library", "benchmark", "controller", "pd", "ladrc"]
+  },
+  "scenario": "quick_controller_benchmark.json",
+  "sweeps": [
+    {
+      "path": "system.controller",
+      "values": ["pd", "ladrc"]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/quick_controller_benchmark_compare"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_wheel_capability",
+    "description": "Curated actuator capability comparison experiment for the cubesat reaction wheel scenario.",
+    "tags": ["platform", "library", "actuator", "reaction_wheel"]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "sweeps": [
+    {
+      "path": "actuators.reaction_wheels.max_torque_nm",
+      "values": [0.002, 0.004, 0.006, 0.008]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/cubesat_rw_wheel_capability"
+  },
+  "acceptance": {
+    "max_final_error_deg": 60.0,
+    "max_rms_error_deg": 60.0,
+    "max_peak_torque_nm": 0.05
+  }
+}
