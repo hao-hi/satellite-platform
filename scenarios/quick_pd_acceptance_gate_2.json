@@ -1,14 +1,11 @@
 {
   "schema_version": 1,
   "metadata": {
-    "name": "quick_pd_showcase",
-    "description": "Curated first-showcase experiment for the quick PD baseline, used to demonstrate the full platform loop from parameter sweep to result reading.",
+    "name": "quick_pd_acceptance_gate_2",
+    "description": "Generated platform experiment for quick_pd_zero.",
     "tags": [
       "platform",
-      "library",
-      "showcase",
-      "baseline_closure",
-      "pd"
+      "generated"
     ]
   },
   "scenario": "quick_pd_zero.json",
@@ -16,14 +13,16 @@
     {
       "path": "controller.pd_kp",
       "values": [
+        0.12,
         0.15,
         0.2,
-        0.25
+        0.25,
+        0.3
       ]
     }
   ],
   "outputs": {
-    "root": "results/platform_library/quick_pd_showcase"
+    "root": "results/platform_library/quick_pd_acceptance_gate"
   },
   "runtime": {
     "template": "single_rate"

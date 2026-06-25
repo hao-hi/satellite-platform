@@ -1,514 +1,296 @@
 # satmodel
 
-**satmodel** 是一个面向小卫星姿态控制研究的轻量 Python 仿真库。项目名称来自 **satellite model**，可以理解为“卫星姿控仿真模型库”。
+`satmodel` 是一个面向卫星姿态控制研究的 Python 仿真平台。  
+它从单场景姿控仿真库出发，正在收敛成一套可复现实验、可批量运行、可自动归档、可通过中文界面展示结果的平台化工作流。
 
-它把卫星姿态仿真拆成可组合模块：
+项目当前希望打通这条研究链路：
 
-```text
-轨道环境 -> 扰动力矩 -> 传感器 -> 姿态估计 -> 控制器 -> 执行机构 -> 刚体动力学
-```
+`物理模型 -> 场景配置 -> 实验计划 -> 批量运行 -> 结果归档 -> 中文界面分析`
 
-项目适合用于 CubeSat/小卫星 ADCS 的第一版建模、控制律验证、反作用轮仿真、姿态估计、惯量辨识和论文式数值实验。
+## 项目定位
 
-## 项目特点
+这个仓库适合三类工作：
 
-- 标量在前四元数姿态表示。
-- 固定步长 RK4 刚体姿态传播。
-- 圆轨道、Kepler 轨道、星历轨道和可选 TLE/SGP4 轨道源。
-- 简化 LEO 环境：地磁场、大气密度、太阳方向和地影。
-- 可选 IGRF 地磁场和 NRLMSIS 大气模型适配器。
-- 重力梯度、残余磁、气动、太阳光压扰动力矩。
-- 理想体轴力矩执行器。
-- 三轮正交和四轮金字塔反作用轮执行器。
-- 反作用轮力矩/速度限幅、失效降级和 null-space 动量管理。
-- 简化姿态传感器和陀螺模型。
-- MEKF 姿态估计。
-- 可选对角惯量 RLS 辨识。
-- PD 和 LADRC 姿态控制器。
-- 网格搜索、随机搜索、Nelder-Mead、模拟退火和 PSO 调参工具。
-- 可复现的反作用轮阵列研究实验。
+1. 姿态控制算法验证  
+   用 `PD`、`LADRC`、`MEKF`、反作用轮和扰动模型快速搭建闭环实验。
+2. 可复现实验组织  
+   用 `ScenarioSpec`、`ExperimentPlan`、参数扫描和 Monte Carlo 固化研究过程。
+3. 中文平台展示  
+   用本地平台界面、Dashboard、姿态回放和结果图做课程展示、答辩演示和阶段汇报。
 
-## 代码结构
+它当前不是一个重型航天工程软件，也不是完整任务级轨道分析器。  
+更准确地说，它是一套面向卫星姿控实验的平台骨架，重点在研究可用性和平台可演进性。
 
-项目采用标准 `src/` layout。第一次阅读代码时，建议先看 `examples/` 里的脚本，再进入 `src/satmodel/system.py` 理解主仿真循环。
+## 当前能力
 
-```text
-satellite-attitude-control-model/
-  README.md                         GitHub 首页说明
-  pyproject.toml                    Python 包元数据、依赖和命令行入口
-  docs/                             架构、物理模型、参考资料和新手导览
-  examples/                         可直接运行的演示脚本
-  scenarios/                        平台化 JSON 场景模板，可由 CLI 直接验证和运行
-  tests/                            单元测试、物理验证和示例 smoke test
-  src/satmodel/                     核心 Python 包
-```
+### 1. 仿真内核
 
-核心包 `src/satmodel/`：
+- 四元数刚体姿态动力学与固定步长传播
+- `PD`、`LADRC` 控制器
+- `MEKF` 姿态估计与可选惯量辨识
+- 理想力矩执行器与四轮金字塔反作用轮
+- 重力梯度、残余磁矩、气动、太阳压等扰动
+- 轻量轨道、地磁和大气环境接口
 
-| 文件或目录 | 作用 |
-| --- | --- |
-| `__init__.py` | 顶层公共 API 汇总，例如 `ScenarioRunner`、`SimulationConfig`、`build_default_system()`。 |
-| `_version.py` | 包版本号。 |
-| `_validation.py` | 输入校验工具，例如三维向量、三阶矩阵、单位向量和 UTC 时间。 |
-| `types.py` | 核心数据对象，包括刚体状态、参考姿态、轨道状态、环境上下文、力矩预算、传感器测量、估计状态、仿真配置、仿真结果和反作用轮遥测。 |
-| `math.py` | 四元数、姿态误差、角速度矩阵、方向余弦矩阵和本体系/惯性系旋转工具。 |
-| `geometry.py` | 盒体几何和投影面积计算，供气动和太阳光压模型共用。 |
-| `physics.py` | 质量属性、均匀盒体惯量、CubeSat 演示物理配置和反作用轮默认配置入口。 |
-| `environment.py` | 轨道源、地理坐标转换、地磁场、大气密度、太阳方向、地影和组合式环境采样。 |
-| `disturbances.py` | 重力梯度、残余磁、气动、太阳光压扰动力矩，以及具名扰动力矩预算。 |
-| `actuators.py` | 理想力矩执行器、单个反作用轮、反作用轮阵列、力矩分配、限幅、失效和遥测。 |
-| `dynamics.py` | 刚体姿态动力学、RK4 积分，以及反作用轮角动量和轮速状态耦合。 |
-| `sensors.py` | 简化姿态传感器和陀螺模型，支持噪声、偏置和随机种子复现。 |
-| `estimation.py` | MEKF 姿态估计和估计器组合。 |
-| `identification.py` | 角加速度辅助、扰动重构、对角惯量 RLS 和辨识诊断量。 |
-| `controllers.py` | PD 控制器和三轴 LADRC 控制器。 |
-| `optimization.py` | 网格搜索、随机搜索、Nelder-Mead、模拟退火和 PSO 参数优化工具。 |
-| `plotting.py` | 仿真结果绘图辅助。 |
-| `system.py` | 高层系统装配、默认系统构造器和单速率固定步长仿真循环，是理解项目运行方式的关键文件。 |
-| `platform/` | v0.3 平台架构层，包含实验计划、实验运行器、项目工作区和报告构建器。 |
-| `studies/` | 可复现实验入口，目前包含反作用轮阵列研究实验。 |
+### 2. 平台工作流
 
-示例脚本 `examples/`：
+- `ScenarioSpec`：场景配置描述
+- `ExperimentPlan`：实验计划描述
+- `ExperimentRunner`：统一实验运行入口
+- `PlatformProject`：工作区、场景、结果目录管理
+- `ReportBuilder`：实验报告、索引和结果汇总生成
 
-| 脚本 | 作用 |
-| --- | --- |
-| `open_loop.py` | 开环刚体传播，不启用控制器。 |
-| `pd_closed_loop.py` | PD 姿态稳定闭环，最适合入门。 |
-| `ladrc_closed_loop.py` | LADRC 姿态控制和扰动诊断。 |
-| `mekf_rls_identification.py` | MEKF 姿态估计和 RLS 惯量辨识。 |
-| `tune_pd.py` | 使用 PSO 优化 PD 控制器参数。 |
-| `cubesat_reaction_wheels_pd.py` | 1U CubeSat 四反作用轮 PD 闭环。 |
-| `cubesat_wheel_failure.py` | 禁用一个反作用轮后的失效降级场景。 |
-| `academic_reaction_wheel_study.py` | 反作用轮阵列论文式批量实验。 |
+标准实验根目录通常会生成：
 
-文档 `docs/`：
+- `experiment_manifest.json`
+- `study_manifest.json`
+- `index.json`
+- `summary_metrics.csv`
+- `README.md`
+- `dashboard.html`
 
-| 文档 | 作用 |
-| --- | --- |
-| `NEWCOMER_GUIDE.md` | 面向第一次打开项目的人，解释项目是什么、各文件做什么、怎么运行。 |
-| `PROJECT_GUIDE.md` | 项目总说明，集中介绍代码结构、仿真流程、物理公式和默认参数。 |
-| `ARCHITECTURE.md` | 架构说明，解释组件层次和单步数据流。 |
-| `ROADMAP.md` | 按成熟平台范式整理的 v0.2-v0.6 演进路线。 |
-| `PLATFORM_PLAN.md` | 平台化路线与实施计划，说明 Project、Experiment、Runtime、Report 等分层。 |
-| `REFERENCES.md` | 参考框架、论文、官方模型和开源项目索引。 |
-| `physics/` | 分专题物理模型说明，包括刚体、环境扰动、反作用轮和参数追溯。 |
+每个 `run` 目录通常会生成：
 
-## 快速安装
+- `manifest.json`
+- `metrics.csv`
+- `time_history.csv`
+- `events.csv`
+- `README.md`
 
-要求：
+### 3. 中文平台界面
 
-- Python 3.10 或更高版本。
-- 如果从 GitHub 克隆或直接安装，需要本机已安装 Git。
+项目提供本地中文平台界面，当前入口包括：
 
-只想在其他电脑上安装并调用库：
+- 平台总览
+- 实验库
+  - 实验主线
+  - 实验地图
+  - 示例入口
+  - 模板库
+- 创建实验
+- 计划管理
+  - 实验选择 / 计划资产总览
+  - 焦点计划
+  - 主线看板
+  - 资产主线
+  - 下一步动作
+- 结果总览
+  - 结果驾驶舱 / 结果入口板
+- 结果对比
+  - 关键 Run 对比 / 对比入口板
+- 姿态回放
+  - 三维回放 / 回放入口板
+- Dashboard 预览
 
-```bash
-python -m pip install git+https://github.com/hao-hi/satellite-attitude-control-model.git
-```
+界面采用左侧导航 + 右侧工作台布局，重点把实验设计、计划管理、结果阅读和回放演示做成一条连续流程。
 
-安装后验证：
+当前界面已支持基于 URL hash 的工作台定位。刷新页面后会保留当前页签和子工作台，也可以直接分享诸如 `#page=results&results=overview&resultsOverview=browser&resultsBrowser=risk` 这样的结果入口。
 
-```bash
-python -c "import satmodel; print(satmodel.__version__)"
-```
+## 适合直接复用的实验
 
-如果要运行示例、修改代码或运行测试，推荐克隆后开发安装：
+仓库已经内置一批可直接运行的实验模板。
 
-```bash
-git clone https://github.com/hao-hi/satellite-attitude-control-model.git
-cd satellite-attitude-control-model
-python -m pip install -e .
-```
+| 类别 | 代表实验 | 用途 |
+| --- | --- | --- |
+| 最小闭环 | `quick_pd_zero` | 验证最小姿态保持闭环 |
+| 平台展示 | `quick_pd_showcase` | 用于第一次平台演示 |
+| 主线 Showcase | `quick_pd_showcase -> controller_benchmark_showcase -> orbital_environment_showcase -> sun_transition_showcase -> fault_wheel_showcase` | 用固定 5 步演示平台主线 |
+| 支线 Showcase | `sensor_quality_showcase` / `disturbance_breakdown_showcase` / `earth_transition_showcase` | 在主线讲清楚后继续深入感知链、扰动解释和对地任务 |
+| 参数扫描 | `quick_pd_gain_sweep` / `quick_pd_damping_sweep` | 比较控制参数影响 |
+| Monte Carlo | `quick_pd_seed_mc` | 评估随机初值或扰动下的稳健性 |
+| 控制器对比 | `quick_controller_benchmark_compare` | 比较 `PD` 与 `LADRC` |
+| 环境敏感性 | `quick_environment_compare` | 比较 zero / orbital 环境差异 |
+| 验收门限 | `quick_pd_acceptance_gate` | 把结果转成通过/失败判断 |
+| 故障鲁棒性 | `cubesat_rw_fault` / `cubesat_rw_fault_seed_mc` | 研究反作用轮故障后的稳定性 |
+| 任务切换 | `cubesat_rw_sun_transition_curated` / `cubesat_rw_earth_transition_curated` | 演示任务模式切换 |
+| 执行器边界 | `cubesat_rw_wheel_capability` / `cubesat_rw_fault_gain_tradeoff` | 分析轮组能力和参数折中 |
+| 扰动拆分 | `cubesat_rw_disturbance_breakdown` | 检查主导扰动来源 |
 
-注意：`python -m pip install -e .` 必须在包含 `pyproject.toml` 的项目根目录执行。不要在微信文件夹、压缩包内部子目录或其他任意目录执行，否则 pip 会提示找不到 `setup.py` 或 `pyproject.toml`。
+完整实验说明见 [docs/EXPERIMENT_LIBRARY.md](docs/EXPERIMENT_LIBRARY.md)。
 
-## 可选依赖
+## 快速开始
 
-开发、测试和构建工具：
+### 环境要求
+
+- Python `>= 3.10`
+
+### 安装
 
 ```bash
-python -m pip install -e ".[dev]"
+git clone https://github.com/hao-hi/satellite-platform.git
+cd satellite-platform
+python -m pip install -e .[dev]
 ```
 
-绘图能力：
+如果需要更完整的地球环境或 TLE 支持：
 
 ```bash
-python -m pip install -e ".[plot]"
+python -m pip install -e .[dev,earth,tle]
 ```
 
-可选地球环境模型和 TLE/SGP4 适配器：
-
-```bash
-python -m pip install -e ".[earth,tle]"
-```
-
-常用开发组合：
-
-```bash
-python -m pip install -e ".[dev,plot,earth,tle]"
-```
-
-说明：
-
-- 基础依赖主要是 `numpy` 和 `matplotlib`。
-- `earth` 会安装 `ppigrf` 和 `pymsis`，用于 IGRF 和 NRLMSIS。
-- `tle` 会安装 `sgp4`，用于 `TLEOrbitProvider`。
-
-## 最小示例
-
-运行一个默认 PD 闭环姿态控制仿真：
-
-```python
-from satmodel import ScenarioRunner, SimulationConfig, build_default_system
-
-system = build_default_system(controller="pd", identify_inertia=True)
-config = SimulationConfig(duration=5.0, dt=0.02)
-
-result = ScenarioRunner(system).run(config)
-
-print(result.metrics(config.reference))
-```
-
-输出指标包括：
-
-- 初始姿态误差。
-- 末端姿态误差。
-- RMS 姿态误差。
-- 控制力矩积分。
-- 峰值执行力矩。
-
-## 轻量平台入口
-
-平台化入口保留原有 `ScenarioRunner` 用法，同时增加配置驱动的场景和实验运行器。下面的例子会生成 run 级 `manifest.json`、`metrics.csv`、`time_history.csv`、`events.csv` 和 `README.md`，并在实验根目录生成 `README.md`、`index.json`、`summary_metrics.csv`、`study_manifest.json` 与 `experiment_manifest.json`：
-
-```python
-from satmodel import ScenarioSpec, StudyRunner
-
-scenario = ScenarioSpec(
-    metadata={"name": "quick_platform_demo"},
-    time={"duration_s": 2.0, "dt_s": 0.02, "seed": 3},
-    system={"builder": "default", "controller": "pd", "environment": "zero"},
-    controller={"pd_kp": 1.5, "pd_kd": 0.35},
-    outputs={"root": "results/quick_platform_demo"},
-)
-
-summary = StudyRunner(scenario).run()
-print(summary.metrics_table()[0]["final_error_deg"])
-```
-
-如果要从文件加载场景，可以使用 `satmodel.load_scenario("scenario.json")`。JSON 是默认无额外依赖路径；YAML 文件在安装 `PyYAML` 后可选支持。
-
-仓库内置了两个可直接运行的 JSON 场景模板：
-
-| 场景 | 作用 |
-| --- | --- |
-| `scenarios/quick_pd_zero.json` | 短时长 PD 闭环 smoke 场景，使用 zero environment。 |
-| `scenarios/cubesat_rw_fault.json` | 1U CubeSat 四轮构型，含 t=0 反作用轮失效。 |
-
-安装为包后可以先验证场景文件，不运行仿真也不写结果：
+### 运行单场景
 
 ```bash
 satmodel-validate-scenario scenarios/quick_pd_zero.json
+satmodel-run-scenario scenarios/quick_pd_zero.json --output results/quick_pd_zero
 ```
 
-也可以直接用命令行运行场景文件：
-
-```bash
-satmodel-run-scenario scenarios/quick_pd_zero.json --output results/my_run
-```
-
-命令行也支持临时覆盖字段和笛卡尔参数扫描：
-
-```bash
-satmodel-run-scenario scenarios/quick_pd_zero.json \
-  --output results/pd_sweep \
-  --set time.seed=9 \
-  --sweep controller.pd_kp=0.05,0.08,0.12
-```
-
-参数扫描会在输出根目录生成 `README.md`、`index.json`、`summary_metrics.csv` 和 `study_manifest.json`，每个 run 则放在 `run_000/`、`run_001/` 等子目录中。
-
-如果要做随机噪声鲁棒性检查，可以用 Monte Carlo seed 序列批量运行：
-
-```bash
-satmodel-run-scenario scenarios/quick_pd_zero.json \
-  --output results/pd_monte_carlo \
-  --monte-carlo 20 \
-  --monte-carlo-seed 100
-```
-
-这会生成 `time.seed=100..119` 的 20 个 run。也可以和 `--sweep` 组合，形成“每组参数下跑多组随机 seed”的小型批量实验。跑完后先打开输出根目录的 `README.md` 看通过/失败数量、最佳 run 和关键指标；程序化分析则读取 `index.json` 或 `summary_metrics.csv`。
-
-`v0.3` 新增了实验计划入口，适合把一个完整实验保存成可复用 JSON。`v0.4` 起，实验计划可以可选包含 runtime 和 mission 描述，运行后额外生成 `runtime_schedule.json` 与 `mode_timeline.json`：
+### 运行批量实验
 
 ```bash
 satmodel-validate-experiment scenarios/quick_pd_experiment.json
 satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
 ```
 
-实验计划支持轻量模板简写，例如 `"runtime": {"template": "single_rate"}` 会按场景 `dt_s` 生成与当前 `ScenarioRunner.step` 对齐的单速率模块顺序，`"mission": {"template": "detumble_then_hold", ...}` 会生成消旋到指向保持的模式时间线。
-
-实验计划会生成 `experiment_manifest.json`，记录计划元数据、场景、扫描/Monte Carlo 设置、可选 runtime/mission 描述和所有 run 摘要；同时生成可直接打开的中文 `dashboard.html`，用于筛选 run、查看验收状态、指标图、姿态误差动画、姿态误差/角速度/力矩时序图、runtime schedule 和 mode timeline。
-
-已有实验目录也可以单独补建界面：
+### 生成结果 Dashboard
 
 ```bash
-satmodel-build-dashboard results/quick_pd_experiment
+satmodel-build-dashboard results/quick_pd_experiment --open
 ```
 
-如果希望从浏览器里操作平台，启动本地控制台：
+### 启动中文平台界面
 
 ```bash
 satmodel-platform-ui --open
 ```
 
-中文控制台会发现 `scenarios/` 下的场景和实验计划，支持查看和校验场景、从场景生成新的实验计划、校验计划、运行实验，并在控制台内嵌预览带动画和仿真结果图的 `dashboard.html`；同时提供关键 run 对比、关键曲线浏览、基于真实四元数的本地三维姿态回放，以及任务模式时间线和运行时调度联动，也可以再单独新窗口打开。
+Windows 下也可以直接双击：
 
-后续平台路线不在 README 展开维护，统一见 [路线图](docs/ROADMAP.md) 和 [平台化路线](docs/PLATFORM_PLAN.md)。
-
-场景文件也可以配置 orbital 环境和轨道参数：
-
-```json
-{
-  "schema_version": 1,
-  "metadata": {"name": "keplerian_platform_demo"},
-  "time": {"duration_s": 20.0, "dt_s": 0.02, "seed": 42},
-  "system": {"builder": "default", "controller": "pd", "environment": "orbital"},
-  "controller": {"pd_kp": 1.5, "pd_kd": 0.35},
-  "sensors": {
-    "attitude": {"noise_std_rad": 0.0006},
-    "gyro": {
-      "noise_std_rad_s": 0.001,
-      "bias_std_rad_s": 0.002,
-      "bias_rw_scale": 0.02
-    }
-  },
-  "environment": {
-    "epoch_utc": "2026-01-01T00:00:00Z",
-    "sun_vector_eci": [1.0, 0.2, 0.1],
-    "orbit": {
-      "provider": "keplerian",
-      "semi_major_axis_m": 6878137.0,
-      "eccentricity": 0.001,
-      "inclination_deg": 97.6,
-      "raan_deg": 15.0
-    }
-  },
-  "actuators": {
-    "reaction_wheels": {
-      "layout": "pyramid_4wheel",
-      "max_torque_nm": 0.007,
-      "initial_speeds_rad_s": [0.0, 0.0, 0.0, 0.0],
-      "allocation": "bounded_pinv"
-    }
-  },
-  "faults": [
-    {"target": "reaction_wheel", "action": "disable", "index": 0, "when_s": 0.0}
-  ],
-  "acceptance": {
-    "max_final_error_deg": 5.0,
-    "max_rms_error_deg": 20.0,
-    "max_peak_torque_nm": 0.2
-  },
-  "outputs": {"root": "results/keplerian_platform_demo"}
-}
+```text
+打开平台界面.bat
 ```
 
-## 运行示例脚本
+默认地址：
 
-进入项目根目录后，可以直接运行：
-
-```bash
-python examples/open_loop.py
-python examples/pd_closed_loop.py
-python examples/ladrc_closed_loop.py
-python examples/mekf_rls_identification.py
-python examples/tune_pd.py
-python examples/cubesat_reaction_wheels_pd.py
-python examples/cubesat_wheel_failure.py
+```text
+http://127.0.0.1:8765
 ```
 
-部分示例支持绘图：
+## 两种使用方式
 
-```bash
-python examples/pd_closed_loop.py --plot
-python examples/cubesat_reaction_wheels_pd.py --plot
-```
-
-示例作用：
-
-| 脚本 | 作用 |
-| --- | --- |
-| `examples/open_loop.py` | 开环刚体传播，不启用控制器。 |
-| `examples/pd_closed_loop.py` | PD 姿态稳定闭环，最适合入门。 |
-| `examples/ladrc_closed_loop.py` | LADRC 姿态控制和扰动诊断。 |
-| `examples/mekf_rls_identification.py` | MEKF 姿态估计和 RLS 惯量辨识。 |
-| `examples/tune_pd.py` | 使用 PSO 优化 PD 控制器参数。 |
-| `examples/cubesat_reaction_wheels_pd.py` | 1U CubeSat 四反作用轮 PD 闭环。 |
-| `examples/cubesat_wheel_failure.py` | 禁用一个反作用轮后的失效降级场景。 |
-| `examples/academic_reaction_wheel_study.py` | 反作用轮阵列论文式批量实验。 |
-
-## 反作用轮仿真
-
-CubeSat 反作用轮系统可以这样调用：
+### 方式 A：作为 Python 仿真库
 
 ```python
-from satmodel import ScenarioRunner, SimulationConfig, build_cubesat_reaction_wheel_system
+from satmodel import ScenarioRunner, SimulationConfig, build_default_system
 
-system = build_cubesat_reaction_wheel_system(controller="pd")
-config = SimulationConfig(duration=6.0, dt=0.02)
-
+system = build_default_system(controller="pd", identify_inertia=True)
+config = SimulationConfig(duration=5.0, dt=0.02)
 result = ScenarioRunner(system).run(config)
 
 print(result.metrics(config.reference))
-print(result.wheel_speeds_rad_s.shape)
-print(result.wheel_allocation_error_nm.max())
 ```
 
-反作用轮不是简单的力矩限幅器。它在项目中作为带内部状态的 `ReactionWheelStateEffector` 接入动力学：
+适合：
+
+- 单场景算法验证
+- 控制器 / 估计器原型开发
+- 在 Python 中二次封装研究代码
+
+### 方式 B：作为本地实验平台
+
+```bash
+satmodel-run-scenario scenarios/quick_pd_zero.json --output results/my_run
+satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/my_experiment
+satmodel-build-dashboard results/my_experiment --open
+satmodel-platform-ui --open
+```
+
+适合：
+
+- 配置驱动实验组织
+- 多 run 结果汇总与复查
+- 中文界面展示与答辩演示
+
+## 平台工作流
+
+```mermaid
+flowchart LR
+    A["Scenario / Experiment JSON"] --> B["Compiler / Loader"]
+    B --> C["ScenarioRunner / ExperimentRunner"]
+    C --> D["Experiment Records"]
+    D --> E["ReportBuilder"]
+    E --> F["README / CSV / JSON / Dashboard"]
+    E --> G["Platform UI"]
+```
+
+当前职责边界：
+
+- 仿真层负责动力学、控制、估计、执行机构和环境
+- 平台层负责项目、计划、运行、记录、报告和界面
+
+这样后续接入运行时调度、任务序列、高保真模型和结果数据库时，不需要推翻当前基础。
+
+## 仓库结构
 
 ```text
-控制器三轴力矩命令
-    -> 轮组分配器
-    -> 单轮力矩/速度限幅
-    -> 本体反作用力矩
-    -> 姿态、角速度和轮速一起积分
+.
+|-- src/satmodel/           核心仿真库与平台层
+|-- scenarios/              场景与实验计划 JSON
+|-- examples/               Python 示例
+|-- docs/                   架构、路线图、实验库、界面说明
+|-- tests/                  单元测试与平台工作流测试
+`-- results/                运行后生成的实验结果
 ```
 
-仿真结果会记录：
+第一次进入仓库，建议优先看：
 
-- `result.wheel_speeds_rad_s`
-- `result.wheel_torques_nm`
-- `result.wheel_torque_commands_nm`
-- `result.wheel_momentum_nms`
-- `result.wheel_momentum_capacity_nms`
-- `result.wheel_allocation_error_nm`
-- `result.wheel_saturation_flags`
+- `src/satmodel/platform/`
+- `scenarios/`
+- `docs/PROJECT_GUIDE.md`
+- `docs/EXPERIMENT_LIBRARY.md`
 
-单轮失效示例：
-
-```python
-system = build_cubesat_reaction_wheel_system(controller="pd")
-system.actuator.disable_wheel(0)
-```
-
-## 可选高保真环境
-
-安装 `earth` 和 `tle` 可选依赖后，可以使用 TLE/SGP4、IGRF 和 NRLMSIS：
-
-```python
-from datetime import datetime, timezone
-
-from satmodel import (
-    EnvironmentConfig,
-    IGRFMagneticField,
-    NRLMSISAtmosphere,
-    OrbitalEnvironment,
-    SpaceWeatherInputs,
-    TLEOrbitProvider,
-)
-
-line1 = "1 25544U 98067A   26142.51965852  .00007327  00000+0  13945-3 0  9999"
-line2 = "2 25544  51.6330  67.1668 0007537  86.3178 273.8672 15.49313075567774"
-
-environment = OrbitalEnvironment(
-    EnvironmentConfig(datetime(2026, 5, 22, 12, 28, 18, tzinfo=timezone.utc)),
-    TLEOrbitProvider(line1, line2),
-    IGRFMagneticField(),
-    NRLMSISAtmosphere(activity=SpaceWeatherInputs(f107=150.0, f107a=150.0, ap=4.0)),
-)
-```
-
-注意：示例中的 TLE 和空间天气参数只是演示输入。正式分析时应使用目标任务对应的 TLE、epoch 和空间天气数据。
-
-## 反作用轮研究实验
-
-项目提供一个可复现的反作用轮阵列对比实验，包含标称四轮、单轮失效、低力矩约束、初始轮速偏置和 null-space 动量管理对比。
-
-命令行运行：
+## 常用命令
 
 ```bash
-satmodel-rw-study --output results/reaction_wheel_study --duration 20 --dt 0.02
+satmodel-validate-scenario scenarios/quick_pd_zero.json
+satmodel-run-scenario scenarios/quick_pd_zero.json --output results/quick_pd_zero
+satmodel-validate-experiment scenarios/quick_pd_experiment.json
+satmodel-run-experiment scenarios/quick_pd_experiment.json --output results/quick_pd_experiment
+satmodel-build-dashboard results/quick_pd_experiment --open
+satmodel-platform-ui --open
+python -m pytest tests/test_platform_workflow.py -q
 ```
 
-或直接运行示例：
+## 文档导航
+
+- [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/PLATFORM_PLAN.md](docs/PLATFORM_PLAN.md)
+- [docs/EXPERIMENT_LIBRARY.md](docs/EXPERIMENT_LIBRARY.md)
+- [docs/PLATFORM_UI_GUIDE.md](docs/PLATFORM_UI_GUIDE.md)
+- [docs/REFERENCES.md](docs/REFERENCES.md)
+
+## 路线概览
+
+当前稳定研究库基线由 Git 标签 `v0.1.0-current` 保留。
+
+后续路线按平台化阶段推进：
+
+- `v0.2`：轻量平台骨架
+- `v0.3`：平台架构收敛，固化 `PlatformProject / ExperimentPlan / ExperimentRunner`
+- `v0.4`：运行时与任务序列，向 `process / task / module` 范式靠拢
+- `v0.5`：高保真环境、传播、传感器和执行机构建模
+- `v0.6`：可视化、实验数据库、结果浏览与发布流程
+
+详细规划见：
+
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/PLATFORM_PLAN.md](docs/PLATFORM_PLAN.md)
+
+## 测试
+
+运行全部测试：
 
 ```bash
-python examples/academic_reaction_wheel_study.py --duration 20 --dt 0.02
+python -m pytest -q
 ```
 
-默认输出到 `results/reaction_wheel_study/`：
-
-- `summary_metrics.csv`
-- `time_history.csv`
-- `README.md`
-- `attitude_error.png`
-- `allocation_error.png`
-- `wheel_speed_norm.png`
-
-## 测试与开发
-
-运行测试：
+如果主要修改平台层，优先运行：
 
 ```bash
-pytest -q
+python -m pytest tests/test_platform_workflow.py -q
 ```
-
-构建本地 wheel/sdist：
-
-```bash
-python -m build
-```
-
-检查构建产物：
-
-```bash
-twine check dist/*
-```
-
-命令行 smoke test：
-
-```bash
-satmodel-rw-study --output results/smoke --duration 2 --dt 0.05 --no-plots
-```
-
-## 物理建模边界
-
-当前默认模型适合第一版 ADCS 研究和控制验证，不等同任务级高保真仿真器。
-
-已包含：
-
-- 刚体姿态动力学。
-- 反作用轮内部轮速状态。
-- 轮组力矩/速度饱和。
-- 轮组失效降级。
-- 简化 LEO 环境。
-- 常见一阶扰动力矩预算。
-
-暂未包含：
-
-- J2、三体、机动和高保真数值轨道传播。
-- 柔性附件、多体关节和燃料晃动。
-- 面元级气动和太阳光压。
-- 地球反照、热辐射和半影。
-- 反作用轮摩擦、jitter、电机电流环。
-- 磁力矩器动量卸载闭环。
-
-如果需要任务级精度，应替换默认质量属性、几何、环境后端和执行机构参数，并根据任务需要接入更高保真传播器。
-
-## 文档
-
-- [新手导览](docs/NEWCOMER_GUIDE.md)
-- [项目总说明与物理建模](docs/PROJECT_GUIDE.md)
-- [架构说明](docs/ARCHITECTURE.md)
-- [路线图](docs/ROADMAP.md)
-- [平台化路线与实施计划](docs/PLATFORM_PLAN.md)
-- [参考资料](docs/REFERENCES.md)
-- [物理模型架构](docs/physics/01_model_architecture.md)
-- [刚体姿态模型](docs/physics/02_rigid_body_attitude_model.md)
-- [环境与扰动模型](docs/physics/03_disturbance_environment_model.md)
-- [反作用轮模型](docs/physics/04_reaction_wheel_model.md)
-- [来源与参数追溯](docs/physics/05_sources_and_parameter_traceability.md)
 
 ## License
 

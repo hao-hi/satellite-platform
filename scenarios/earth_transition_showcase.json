@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "earth_transition_showcase",
+    "description": "Curated showcase for detumble to earth-pointing transition, used to explain nadir reference, mission timeline and replay consistency.",
+    "tags": ["platform", "library", "showcase", "mission_transition", "earth_pointing"]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "sweeps": [
+    {
+      "path": "controller.pd_kd",
+      "values": [0.03, 0.05, 0.07]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "detumble_then_hold",
+    "detumble_s": 0.6,
+    "hold_mode": "earth_pointing",
+    "reference": "nadir"
+  },
+  "outputs": {
+    "root": "results/platform_library/earth_transition_showcase"
+  },
+  "acceptance": {
+    "max_final_error_deg": 60.0,
+    "max_rms_error_deg": 60.0,
+    "max_peak_torque_nm": 0.08
+  }
+}

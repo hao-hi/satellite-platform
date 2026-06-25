@@ -2,10 +2,13 @@
   "schema_version": 1,
   "metadata": {
     "name": "sun_transition_showcase",
-    "description": "Generated platform experiment for cubesat_rw_fault.",
+    "description": "Curated mission-showcase experiment demonstrating detumble to sun-pointing transition with timeline and replay assets.",
     "tags": [
       "platform",
-      "generated"
+      "library",
+      "showcase",
+      "mission_transition",
+      "sun_pointing"
     ]
   },
   "scenario": "cubesat_rw_fault.json",
@@ -20,7 +23,7 @@
     }
   ],
   "outputs": {
-    "root": "results/platform_ui/sun_transition_showcase"
+    "root": "results/platform_library/sun_transition_showcase"
   },
   "runtime": {
     "template": "single_rate"

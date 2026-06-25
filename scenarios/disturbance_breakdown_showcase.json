@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "disturbance_breakdown_showcase",
+    "description": "Curated showcase sweeping lightweight disturbance profiles to explain which orbital disturbance dominates the current CubeSat reaction-wheel baseline.",
+    "tags": ["platform", "library", "showcase", "disturbance_breakdown", "orbital", "reaction-wheel"]
+  },
+  "scenario": "cubesat_rw_orbital_baseline.json",
+  "sweeps": [
+    {
+      "path": "system.disturbance_profile",
+      "values": [
+        "gravity_gradient_only",
+        "residual_magnetic_only",
+        "aerodynamic_only",
+        "solar_pressure_only",
+        "all"
+      ]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/disturbance_breakdown_showcase"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

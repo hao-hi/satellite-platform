@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "controller_benchmark_showcase",
+    "description": "Curated showcase comparing PD and LADRC under a shared baseline, intended for first-pass controller benchmark demos.",
+    "tags": ["platform", "library", "showcase", "controller_benchmark", "pd", "ladrc"]
+  },
+  "scenario": "quick_controller_benchmark.json",
+  "sweeps": [
+    {
+      "path": "system.controller",
+      "values": ["pd", "ladrc"]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/controller_benchmark_showcase"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

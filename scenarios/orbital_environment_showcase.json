@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "orbital_environment_showcase",
+    "description": "Curated showcase contrasting zero and orbital environments so the platform can demonstrate disturbance-aware results, not only ideal baseline runs.",
+    "tags": ["platform", "library", "showcase", "environment_sensitivity", "orbital"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "system.environment",
+      "values": ["zero", "orbital"]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "sun"
+  },
+  "outputs": {
+    "root": "results/platform_library/orbital_environment_showcase"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "sensor_quality_showcase",
+    "description": "Curated showcase scanning gyro noise quality so the platform can explain when measurement degradation starts to dominate closed-loop performance.",
+    "tags": ["platform", "library", "showcase", "sensor_sensitivity", "gyro_noise"]
+  },
+  "scenario": "quick_pd_zero.json",
+  "sweeps": [
+    {
+      "path": "sensors.gyro.noise_std_rad_s",
+      "values": [0.0005, 0.001, 0.002, 0.004]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "single_mode",
+    "mode": "inertial_hold",
+    "reference": "body_zero"
+  },
+  "outputs": {
+    "root": "results/platform_library/sensor_quality_showcase"
+  },
+  "acceptance": {
+    "max_final_error_deg": 40.0,
+    "max_rms_error_deg": 40.0,
+    "max_peak_torque_nm": 0.2
+  }
+}

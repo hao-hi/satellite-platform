@@ -1,14 +1,11 @@
 {
   "schema_version": 1,
   "metadata": {
-    "name": "quick_pd_showcase",
-    "description": "Curated first-showcase experiment for the quick PD baseline, used to demonstrate the full platform loop from parameter sweep to result reading.",
+    "name": "quick_pd_showcase_3",
+    "description": "Generated platform experiment for quick_pd_zero.",
     "tags": [
       "platform",
-      "library",
-      "showcase",
-      "baseline_closure",
-      "pd"
+      "generated"
     ]
   },
   "scenario": "quick_pd_zero.json",
@@ -23,7 +20,7 @@
     }
   ],
   "outputs": {
-    "root": "results/platform_library/quick_pd_showcase"
+    "root": "results/platform_ui/quick_pd_showcase_3"
   },
   "runtime": {
     "template": "single_rate"

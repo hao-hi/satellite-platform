@@ -1017,6 +1017,8 @@ def _render_dashboard(payload: dict[str, Any]) -> str:
         ['机器索引 index.json', 'index.json'],
         ['汇总指标 summary_metrics.csv', 'summary_metrics.csv'],
         ['实验清单 experiment_manifest.json', 'experiment_manifest.json'],
+        ['汇报摘要 REPORT_SUMMARY.md', index.report_summary],
+        ['论文摘要 PAPER_SUMMARY.md', index.paper_summary],
         [index.runtime_schedule, index.runtime_schedule],
         [index.mode_timeline, index.mode_timeline],
       ].filter(item => item[0]);

@@ -2,10 +2,13 @@
   "schema_version": 1,
   "metadata": {
     "name": "fault_wheel_showcase",
-    "description": "Generated platform experiment for cubesat_rw_fault.",
+    "description": "Curated actuator-margin showcase comparing reaction-wheel torque capability under the fault baseline.",
     "tags": [
       "platform",
-      "generated"
+      "library",
+      "showcase",
+      "actuator_margin",
+      "reaction-wheel"
     ]
   },
   "scenario": "cubesat_rw_fault.json",
@@ -20,7 +23,7 @@
     }
   ],
   "outputs": {
-    "root": "results/platform_ui/fault_wheel_showcase"
+    "root": "results/platform_library/fault_wheel_showcase"
   },
   "runtime": {
     "template": "single_rate"

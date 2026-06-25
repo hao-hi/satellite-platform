@@ -23,7 +23,7 @@ STDERR_LOG = WORKSPACE_ROOT / "platform_ui.stderr.log"
 
 def _ui_health(url: str) -> bool:
     try:
-        with urllib.request.urlopen(f"{url}/api/health", timeout=2) as response:
+        with urllib.request.urlopen(f"{url}/api/health", timeout=4.0) as response:
             if response.status < 200 or response.status >= 500:
                 return False
             payload = json.loads(response.read().decode("utf-8"))
@@ -47,6 +47,7 @@ def _choose_port(host: str, preferred_port: int, max_port: int) -> tuple[int, bo
         url = f"http://{host}:{port}"
         if _ui_health(url):
             return port, True
+    for port in range(preferred_port, max_port + 1):
         if _port_available(port, host):
             return port, False
     raise RuntimeError(f"no available UI port found between {preferred_port} and {max_port}")
@@ -60,13 +61,27 @@ def _creationflags() -> int:
     return flags
 
 
+def _log_paths(port: int) -> tuple[Path, Path]:
+    return (
+        WORKSPACE_ROOT / f"platform_ui_{port}.stdout.log",
+        WORKSPACE_ROOT / f"platform_ui_{port}.stderr.log",
+    )
+
+
+def _open_log_handle(path: Path, fallback_name: str) -> "io.BufferedWriter":
+    try:
+        if path.exists():
+            path.unlink()
+        return path.open("wb")
+    except PermissionError:
+        fallback = WORKSPACE_ROOT / fallback_name
+        return fallback.open("wb")
+
+
 def _start_server(host: str, port: int) -> subprocess.Popen[bytes]:
-    if STDOUT_LOG.exists():
-        STDOUT_LOG.unlink()
-    if STDERR_LOG.exists():
-        STDERR_LOG.unlink()
-    stdout_handle = STDOUT_LOG.open("wb")
-    stderr_handle = STDERR_LOG.open("wb")
+    stdout_path, stderr_path = _log_paths(port)
+    stdout_handle = _open_log_handle(stdout_path, f"platform_ui_{port}_{int(time.time())}.stdout.log")
+    stderr_handle = _open_log_handle(stderr_path, f"platform_ui_{port}_{int(time.time())}.stderr.log")
     command = [sys.executable, str(SERVE_SCRIPT), "--root", ".", "--host", host, "--port", str(port)]
     try:
         flags = _creationflags()

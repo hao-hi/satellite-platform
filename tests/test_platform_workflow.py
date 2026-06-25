@@ -160,6 +160,8 @@ def test_json_scenario_loads_and_study_runner_writes_outputs(tmp_path):
     assert (output / "study_manifest.json").exists()
     assert (output / "index.json").exists()
     assert (output / "experiment_manifest.json").exists()
+    assert (output / "REPORT_SUMMARY.md").exists()
+    assert (output / "PAPER_SUMMARY.md").exists()
     assert (output / "dashboard.html").exists()
 
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
@@ -173,6 +175,8 @@ def test_json_scenario_loads_and_study_runner_writes_outputs(tmp_path):
     assert index["best_run_id"] == "run_000"
     assert "final_error_deg" in index["metric_columns"]
     assert "peak_disturbance_torque_nm" in index["metric_columns"]
+    assert index["report_summary"] == "REPORT_SUMMARY.md"
+    assert index["paper_summary"] == "PAPER_SUMMARY.md"
     assert experiment_manifest["experiment"]["scenario"]["metadata"]["name"] == "platform_smoke"
 
     with (output / "metrics.csv").open(newline="", encoding="utf-8") as handle:
@@ -428,13 +432,19 @@ def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
     schedule = json.loads((output / "runtime_schedule.json").read_text(encoding="utf-8"))
     timeline = json.loads((output / "mode_timeline.json").read_text(encoding="utf-8"))
     readme = (output / "README.md").read_text(encoding="utf-8")
+    report_summary = (output / "REPORT_SUMMARY.md").read_text(encoding="utf-8")
+    paper_summary = (output / "PAPER_SUMMARY.md").read_text(encoding="utf-8")
     dashboard = (output / "dashboard.html").read_text(encoding="utf-8")
 
     assert "runtime_schedule" in summary.write_outputs()
     assert "mode_timeline" in summary.write_outputs()
+    assert "report_summary" in summary.write_outputs()
+    assert "paper_summary" in summary.write_outputs()
     assert "dashboard" in summary.write_outputs()
     assert index["runtime_schedule"] == "runtime_schedule.json"
     assert index["mode_timeline"] == "mode_timeline.json"
+    assert index["report_summary"] == "REPORT_SUMMARY.md"
+    assert index["paper_summary"] == "PAPER_SUMMARY.md"
     assert index["dashboard"] == "dashboard.html"
     assert manifest["experiment"]["runtime"]["name"] == "flight"
     assert manifest["experiment"]["mission"]["steps"][1]["mode"] == "inertial_hold"
@@ -443,11 +453,17 @@ def test_experiment_runner_writes_runtime_and_mission_outputs(tmp_path):
     assert timeline["timeline"][1]["reference"] == "body_zero"
     assert "`runtime_schedule.json`" in readme
     assert "`mode_timeline.json`" in readme
+    assert "`REPORT_SUMMARY.md`" in readme
+    assert "`PAPER_SUMMARY.md`" in readme
+    assert "汇报摘要" in report_summary
+    assert "论文摘要模板" in paper_summary
     assert "指标总览" in dashboard
     assert "仿真结果图" in dashboard
     assert "姿态误差动画" in dashboard
     assert "诊断摘要" in dashboard
     assert "验收失败原因" in dashboard
+    assert "汇报摘要 REPORT_SUMMARY.md" in dashboard
+    assert "论文摘要 PAPER_SUMMARY.md" in dashboard
     assert "动态峰值摘要" in dashboard
     assert "扰动力矩预算" in dashboard
     assert "环境扰动分解" in dashboard
@@ -742,7 +758,10 @@ def test_platform_webapp_discovers_validates_and_runs_experiment(tmp_path):
     assert "time_history.csv" in dashboard_details["runs"][0]["artifacts"]
     assert dashboard_details["timeline"]["timeline"][0]["mode"] == "safe"
     assert dashboard_details["runtime"]["snapshots"][0]["task"] == "attitude_step"
-    assert dashboard_details["files"][-1]["name"] == "dashboard.html"
+    file_names = [item["name"] for item in dashboard_details["files"]]
+    assert "REPORT_SUMMARY.md" in file_names
+    assert "PAPER_SUMMARY.md" in file_names
+    assert "dashboard.html" in file_names
     assert (workspace / "results" / "webapp_plan" / "dashboard.html").exists()
     assert rediscovered["dashboards"][0]["run_count"] == 1
     assert rediscovered["dashboards"][0]["acceptance_rate"] == 1.0
@@ -973,6 +992,77 @@ def test_platform_webapp_can_archive_experiment_plan(tmp_path):
     assert discovered["archived_experiments"][0]["name"] == "archivable_plan"
 
 
+def test_discover_workspace_summarizes_asset_health(tmp_path):
+    workspace = tmp_path / "workspace"
+    scenario_dir = workspace / "scenarios"
+    scenario_dir.mkdir(parents=True)
+    (scenario_dir / "scenario.json").write_text(
+        json.dumps(_scenario_mapping(workspace / "ignored"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (scenario_dir / "quick_pd_gain_sweep.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {
+                    "name": "quick_pd_gain_sweep",
+                    "tags": ["platform", "library", "tuning"],
+                },
+                "scenario": "scenario.json",
+                "outputs": {"root": "results/platform_library/quick_pd_gain_sweep"},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (scenario_dir / "quick_pd_showcase.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {
+                    "name": "quick_pd_showcase",
+                    "description": "Generated platform experiment for quick_pd_zero.",
+                    "tags": ["platform", "generated"],
+                },
+                "scenario": "scenario.json",
+                "outputs": {"root": "results/platform_ui/quick_pd_showcase"},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (scenario_dir / "quick_pd_showcase_2.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {
+                    "name": "quick_pd_showcase_2",
+                    "description": "Generated platform experiment for quick_pd_zero.",
+                    "tags": ["platform", "generated"],
+                },
+                "scenario": "scenario.json",
+                "outputs": {"root": "results/platform_ui/quick_pd_showcase_2"},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    discovered = discover_workspace(workspace)
+    rows = {row["name"]: row for row in discovered["experiments"]}
+
+    assert rows["quick_pd_gain_sweep"]["asset_kind"] == "library"
+    assert rows["quick_pd_gain_sweep"]["asset_label"] == "标准实验资产"
+    assert rows["quick_pd_showcase"]["asset_kind"] == "showcase"
+    assert rows["quick_pd_showcase_2"]["asset_kind"] == "showcase_variant"
+    assert rows["quick_pd_showcase_2"]["needs_consolidation"] is True
+    assert discovered["asset_summary"]["library_count"] == 1
+    assert discovered["asset_summary"]["showcase_count"] == 2
+    assert discovered["asset_summary"]["generated_count"] == 0
+    assert discovered["asset_summary"]["needs_consolidation_count"] == 1
+    assert discovered["asset_summary"]["duplication_candidates"][0]["family"] == "quick_pd_showcase"
+
+
 def test_platform_webapp_can_restore_archived_experiment_plan(tmp_path):
     workspace = tmp_path / "workspace"
     scenario_dir = workspace / "scenarios"
@@ -1082,6 +1172,9 @@ def test_platform_webapp_home_contains_builder_result_panel():
     html = _render_home()
 
     assert "平台总览" in html
+    assert "平台工作流图" in html
+    assert "平台分层图" in html
+    assert "实验推进图" in html
     assert "总览" in html
     assert "实验设计" in html
     assert "运行结果" in html
@@ -1094,9 +1187,21 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "结果对比" in html
     assert "姿态回放" in html
     assert "Dashboard 预览" in html
+    assert "结果分析流程板" in html
+    assert "对比判读板" in html
+    assert "回放任务板" in html
+    assert "对比读图任务书" in html
+    assert "任务片段卡片" in html
+    assert "运行时快照轨迹" in html
     assert "最近实验计划" in html
     assert "最近实验结果" in html
     assert "待关注事项" in html
+    assert "实验生命周期看板" in html
+    assert "计划推进流程板" in html
+    assert "计划操作路径" in html
+    assert "当前计划流程图" in html
+    assert "实验任务书" in html
+    assert "实验主线导航" in html
     assert "资料与扩展入口" in html
     assert "核心资料" in html
     assert "实验库建议" in html
@@ -1111,6 +1216,8 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "查看对应计划" in html
     assert "重新运行这个计划" in html
     assert "Run 明细" in html
+    assert "运行概况" in html
+    assert "Run 工作台" in html
     assert "当前用于对比 A" in html
     assert "当前用于姿态回放" in html
     assert "与最佳 Run 的参数差异" in html
@@ -1141,6 +1248,7 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "快速配置" in html
     assert "高级配置" in html
     assert "实验设计工作台" in html
+    assert "实验设计画布" in html
     assert "实验内容建议" in html
     assert "先选实验主线" in html
     assert "第二扫描变量模板" in html
@@ -1149,10 +1257,34 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "实验假设" in html
     assert "适用前提" in html
     assert "建议图表" in html
+    assert "当前协议定位" in html
+    assert "推荐步骤与结果" in html
+    assert "标准实验协议卡" in html
+    assert "推荐变量设计" in html
+    assert "推荐验收口径" in html
+    assert "推荐结果图包" in html
+    assert "派生命名建议" in html
+    assert "协议成熟度" in html
+    assert "资产定位" in html
+    assert "成熟范式参考" in html
     assert "代表结果入口" in html
+    assert "代表资产视图" in html
+    assert "打开代表计划" in html
+    assert "运行代表计划" in html
     assert "查看代表结果" in html
     assert "实验资产地图" in html
     assert "实验建设主线" in html
+    assert "实验协议主线" in html
+    assert "实验协议卡" in html
+    assert "协议概览" in html
+    assert "代表资产" in html
+    assert "学术说明" in html
+    assert "闭环基线协议" in html
+    assert "推荐验收" in html
+    assert "实验成熟度" in html
+    assert "协议推荐步骤" in html
+    assert "定位下一协议实验" in html
+    assert "载入下一协议模板" in html
     assert "控制器整定" in html
     assert "随机鲁棒性" in html
     assert "任务模式切换" in html
@@ -1188,6 +1320,11 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "实验选择" in html
     assert "先在这里选要继续的实验" in html
     assert "实验池" in html
+    assert "计划焦点" in html
+    assert "主线看板" in html
+    assert "资产主线" in html
+    assert "计划清单" in html
+    assert "计划资产总览" in html
     assert "当前计划" in html
     assert "版本与归档" in html
     assert "场景与记录" in html
@@ -1196,6 +1333,18 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "资产状态" in html
     assert "快速选择实验计划" in html
     assert "当前计划画像" in html
+    assert "计划标准卡" in html
+    assert "重点图表包" in html
+    assert "推荐派生版本" in html
+    assert "协议阶段" in html
+    assert "实验资产健康" in html
+    assert "主线代表资产" in html
+    assert "打开主线代表计划" in html
+    assert "打开主线代表结果" in html
+    assert "待收敛副本" in html
+    assert "变量矩阵" in html
+    assert "验收口径" in html
+    assert "结果联动" in html
     assert 'id="editor-quick-select"' in html
     assert "载入编辑" in html
     assert 'id="experiment-picker"' in html
@@ -1206,6 +1355,25 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "当前步骤：研究问题" in html
     assert "下一步：设计变量" in html
     assert "实验结论导读" in html
+    assert "学术摘要首屏" in html
+    assert "一句结论" in html
+    assert "验收判定" in html
+    assert "优先图包" in html
+    assert "下一条实验" in html
+    assert "结果驾驶舱" in html
+    assert "结果列表" in html
+    assert "代表结果看板" in html
+    assert "当前代表资产" in html
+    assert "风险结果清单" in html
+    assert "焦点结果画布" in html
+    assert "结果首页行动板" in html
+    assert "主线结果导航" in html
+    assert "失败结果排行" in html
+    assert "实验主线分组" in html
+    assert "全部主线" in html
+    assert "实验地图" in html
+    assert "首页阅读路线" in html
+    assert "推荐图表入口" in html
     assert "当前观察" in html
     assert "实验链路导航" in html
     assert "当前所处环节" in html
@@ -1215,6 +1383,20 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "图表" in html
     assert "链路" in html
     assert "产物" in html
+    assert "结果摘要画布" in html
+    assert "诊断工作台" in html
+    assert "图表阅读路径" in html
+    assert "代表图与论文图出口" in html
+    assert "代表图" in html
+    assert "论文图" in html
+    assert "演示图" in html
+    assert "学术图包导览" in html
+    assert "基线图包" in html
+    assert "诊断图包" in html
+    assert "边界图包" in html
+    assert "回放图包" in html
+    assert "实验链路工作台" in html
+    assert "结果产物面板" in html
     assert "关键图表阅读面板" in html
     assert "scrollToCompareView()" in html
     assert "scrollToPreviewView()" in html
@@ -1242,6 +1424,10 @@ def test_platform_webapp_home_contains_builder_result_panel():
     assert "快速闭环演示" in html
     assert "反作用轮故障演示" in html
     assert "太阳指向切换演示" in html
+    assert "对地指向演示" in html
+    assert "对地指向切换" in html
+    assert "对地指向任务实验" in html
+    assert "对地任务执行器边界实验" in html
     assert "载入到创建器" in html
     assert 'id="archived-experiment-plans"' in html
     assert 'id="archived-experiment-count"' in html
@@ -1271,6 +1457,8 @@ def test_curated_experiment_library_plans_validate():
         scenario_dir / "quick_sensor_noise_sensitivity.json",
         scenario_dir / "cubesat_rw_fault_seed_mc.json",
         scenario_dir / "cubesat_rw_sun_transition_curated.json",
+        scenario_dir / "cubesat_rw_earth_transition_curated.json",
+        scenario_dir / "cubesat_rw_earth_transition_wheel_capability.json",
         scenario_dir / "cubesat_rw_fault_gain_tradeoff.json",
         scenario_dir / "cubesat_rw_wheel_capability.json",
         scenario_dir / "cubesat_rw_momentum_management_sweep.json",
@@ -1301,6 +1489,8 @@ def test_platform_ui_health_reports_workspace_summary(tmp_path):
     assert health["experiment_count"] == 0
     assert health["archived_experiment_count"] == 0
     assert health["dashboard_count"] == 0
+    assert health["library_experiment_count"] == 0
+    assert health["needs_consolidation_count"] == 0
 
 
 def test_validate_experiment_cli_does_not_write_outputs(tmp_path, capsys):

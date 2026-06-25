@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "cubesat_rw_earth_transition_wheel_capability",
+    "description": "Curated earth-pointing mission actuator capability experiment for the cubesat reaction wheel scenario.",
+    "tags": ["platform", "library", "earth_pointing", "actuator", "mission_transition"]
+  },
+  "scenario": "cubesat_rw_fault.json",
+  "sweeps": [
+    {
+      "path": "actuators.reaction_wheels.max_torque_nm",
+      "values": [0.002, 0.004, 0.006, 0.008]
+    }
+  ],
+  "runtime": {
+    "template": "single_rate"
+  },
+  "mission": {
+    "template": "detumble_then_hold",
+    "detumble_s": 0.8,
+    "hold_mode": "earth_pointing",
+    "reference": "nadir"
+  },
+  "outputs": {
+    "root": "results/platform_library/cubesat_rw_earth_transition_wheel_capability"
+  },
+  "acceptance": {
+    "max_final_error_deg": 60.0,
+    "max_rms_error_deg": 60.0,
+    "max_peak_torque_nm": 0.05
+  }
+}
